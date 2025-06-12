@@ -124,36 +124,52 @@ const Files: React.FC<{
   };
 
   // Initialize IPFS client with email and space
-  const initializeIpfsClient = async (email: string, space: string) => {
+
+  const initializeIpfsClient = async (email, space) => {
     try {
       setLoading(true);
       const client = await createClient();
       console.log("Client created:", client);
 
-      const account = await client.login(email as `${string}@${string}`);
+      const account = await client.login(email);
       console.log("Account logged in:", account);
 
-      if (space) {
-        console.log("Setting current space:", space);
-        await client.setCurrentSpace(space as DID);
-        console.log("Current space set");
-        setUserSpace(space);
-      }
+      console.log("Setting current space:", space);
+      const currSpace = await client.setCurrentSpace(space);
+      console.log("Current space set:", currSpace);
+
+      setUserSpace(space);
 
       // Store client in state
       setIpfsClient(client);
 
-      // Store credentials in localStorage
+      // Check if user has any spaces
+      // const spaces = await client.spaces();
+      // if (spaces.length > 0) {
+      //   // Use the first space
+      //   await client.setCurrentSpace(spaces[0].did());
+      //   let currentspace = await client.createSpace('Upload Space', { skipGatewayAuthorization: true })
+      //   await client.addSpace(await currentspace.createAuthorization(client))
+      //   await account.provision(currentspace.did())
+      //   await client.setCurrentSpace(currentspace.did());
+      //   const recovery = await currentspace.createRecovery(account.did())
+      //   await client.capability.access.delegate({
+      //     space: currentspace.did(),
+      //     delegations: [recovery],
+      //   })
+      //   setUserSpace(currentspace);
+
       localStorage.setItem("ipfsUserEmail", email);
-      if (space) {
-        localStorage.setItem("ipfsUserSpace", space);
-      }
+      localStorage.setItem("ipfsUserSpace", userSpace);
+      // } else {
+      //   // Show space setup UI
+      //   setShowSpaceSetup(true);
+      // }
 
       return client;
     } catch (error) {
       console.error("Error initializing IPFS client:", error);
-      setToastMessage("Failed to initialize IPFS client. Please try again.");
-      setShowToast(true);
+      alert("Failed to initialize IPFS client. Please try again.");
       return null;
     } finally {
       setLoading(false);
