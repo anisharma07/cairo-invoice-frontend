@@ -15,6 +15,10 @@ The application is built using Ionic framework for cross-platform compatibility,
 
 [drive link](https://drive.google.com/drive/folders/1zRnLYHy3tzIOQnD-aWovxIG5ih2BTyh_?usp=sharing)
 
+### Vercel Deployment:
+
+[Web App link](https://cairo-invoice-frontend.vercel.app/)
+
 ## Usage of Social Calc Engine
 
 The Social Calc Engine is integrated as the core calculation engine for handling complex invoice computations and spreadsheet-like functionality within the application.
