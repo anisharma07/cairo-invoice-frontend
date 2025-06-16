@@ -30,8 +30,8 @@ import {
   useIsUserSubscribed,
   useGetSubscriptionDetails,
   useGetUserTokens,
-} from "../hooks/useContractRead";
-import { useSubscribe } from "../hooks/useContractWrite";
+} from "../../hooks/useContractRead";
+import { useSubscribe } from "../../hooks/useContractWrite";
 
 const Subscription: React.FC = () => {
   const { address, status } = useAccount();
@@ -77,7 +77,15 @@ const Subscription: React.FC = () => {
       subscriptionLoading,
       tokensLoading,
     });
-  }, [address, status, isSubscribed, subscriptionDetails, tokens, subscriptionLoading, tokensLoading]);
+  }, [
+    address,
+    status,
+    isSubscribed,
+    subscriptionDetails,
+    tokens,
+    subscriptionLoading,
+    tokensLoading,
+  ]);
 
   // Calculate time remaining for subscription
   useEffect(() => {

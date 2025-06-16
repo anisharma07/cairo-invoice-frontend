@@ -10,6 +10,7 @@ import { APP_NAME } from "../../app-data.js";
 import { useAccount } from "@starknet-react/core";
 import { uploadJSONToIPFS } from "../../utils/ipfs";
 import { useSaveFile } from "../../hooks/useContractWrite";
+import { useIsUserSubscribed } from "../../hooks/useContractRead";
 
 const Menu: React.FC<{
   showM: boolean;
@@ -21,6 +22,9 @@ const Menu: React.FC<{
 }> = (props) => {
   const { address, account } = useAccount();
   const { saveFile, isPending: isSaving } = useSaveFile();
+  const { isSubscribed } = useIsUserSubscribed({
+    accountAddress: address as `0x${string}` | undefined,
+  });
 
   const [showAlert1, setShowAlert1] = useState(false);
   const [showAlert2, setShowAlert2] = useState(false);
@@ -102,6 +106,15 @@ const Menu: React.FC<{
 
     if (!address) {
       setToastMessage("Please connect your wallet first");
+      setShowToast1(true);
+      return;
+    }
+
+    // Check if user is subscribed
+    if (!isSubscribed) {
+      setToastMessage(
+        "Premium subscription required to save to blockchain. Please subscribe to access this feature."
+      );
       setShowToast1(true);
       return;
     }

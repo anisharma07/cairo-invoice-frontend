@@ -1,5 +1,5 @@
 import { useAccount, useContract } from "@starknet-react/core";
-import { type Abi } from "starknet";
+import { type Abi, byteArray, CallData } from "starknet";
 import { useState } from "react";
 import { MED_INVOICE_ABI } from "../abis/medInvoiceAbi";
 
@@ -37,11 +37,15 @@ export function useSaveFile() {
     try {
       console.log("Saving file with name:", fileName, "IPFS hash:", ipfsHash);
 
+      // Convert strings to ByteArray format
+      const fileNameByteArray = byteArray.byteArrayFromString(fileName);
+      const ipfsHashByteArray = byteArray.byteArrayFromString(ipfsHash);
+
       // Send transaction
       const response = await account.execute({
         contractAddress: contract.address,
         entrypoint: "save_file",
-        calldata: [fileName, ipfsHash],
+        calldata: CallData.compile([fileNameByteArray, ipfsHashByteArray]),
       });
 
       console.log("Transaction response:", response);

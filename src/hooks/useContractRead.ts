@@ -65,12 +65,12 @@ export function useGetUserTokens({ accountAddress }: UseContractReadProps) {
     error: tokensError,
   } = useReadContract({
     functionName: "get_user_tokens",
-    args: [], // Contract uses caller address internally
+    args: accountAddress ? [accountAddress] : [],
     abi: MED_INVOICE_ABI as Abi,
     address: CONTRACT_ADDRESS,
     watch: true,
     refetchInterval: 10000,
-    enabled: !!accountAddress, // Still keep this to ensure wallet is connected
+    enabled: !!accountAddress,
   });
 
   return {
