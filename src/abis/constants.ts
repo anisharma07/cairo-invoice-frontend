@@ -1,4 +1,4 @@
 export const MED_INVOICE_CONTRACT_ADDRESS =
-  "0x044d8b61a156b05bdc96fa6f62fb7fd45aea00ef3d83a467bd5edf5ed5a2be6b"; // Replace with actual contract address
+  "0x017aad7feed14f14cebb3809a7ceaa0479a57c861fb71c836adc7ce46ec90b27";
 export const MED_TOKEN_CONTRACT_ADDRESS =
-  "0x06c23fc4f2017805ad3a9230eb67381b8a8658b7f2995dac5b6fd44a41f513e6";
+  "0x07e0b09cc6209d4211f150944e7fc0dab7338f0a3a6199ff96d4667bef0e68bc";

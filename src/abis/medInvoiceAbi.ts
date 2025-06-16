@@ -3,7 +3,7 @@ export const MED_INVOICE_ABI = [
     type: "impl",
     name: "MedInvoiceContractImpl",
     interface_name:
-      "sn_medi_token::interfaces::IMedInvoice::IMedInvoiceContract",
+      "sn_medi_invoice::interfaces::IMedInvoice::IMedInvoiceContract",
   },
   {
     type: "struct",
@@ -39,7 +39,7 @@ export const MED_INVOICE_ABI = [
   },
   {
     type: "struct",
-    name: "sn_medi_token::interfaces::IMedInvoice::FileRecord",
+    name: "sn_medi_invoice::interfaces::IMedInvoice::FileRecord",
     members: [
       {
         name: "file_name",
@@ -79,7 +79,7 @@ export const MED_INVOICE_ABI = [
   },
   {
     type: "interface",
-    name: "sn_medi_token::interfaces::IMedInvoice::IMedInvoiceContract",
+    name: "sn_medi_invoice::interfaces::IMedInvoice::IMedInvoiceContract",
     items: [
       {
         type: "function",
@@ -108,7 +108,7 @@ export const MED_INVOICE_ABI = [
         ],
         outputs: [
           {
-            type: "core::array::Array::<sn_medi_token::interfaces::IMedInvoice::FileRecord>",
+            type: "core::array::Array::<sn_medi_invoice::interfaces::IMedInvoice::FileRecord>",
           },
         ],
         state_mutability: "view",
@@ -255,7 +255,7 @@ export const MED_INVOICE_ABI = [
   },
   {
     type: "event",
-    name: "sn_medi_token::contracts::MedInvoice::MedInvoiceContract::FileSaved",
+    name: "sn_medi_invoice::contracts::MedInvoice::MedInvoiceContract::FileSaved",
     kind: "struct",
     members: [
       {
@@ -287,7 +287,7 @@ export const MED_INVOICE_ABI = [
   },
   {
     type: "event",
-    name: "sn_medi_token::contracts::MedInvoice::MedInvoiceContract::NewSubscription",
+    name: "sn_medi_invoice::contracts::MedInvoice::MedInvoiceContract::NewSubscription",
     kind: "struct",
     members: [
       {
@@ -361,17 +361,17 @@ export const MED_INVOICE_ABI = [
   },
   {
     type: "event",
-    name: "sn_medi_token::contracts::MedInvoice::MedInvoiceContract::Event",
+    name: "sn_medi_invoice::contracts::MedInvoice::MedInvoiceContract::Event",
     kind: "enum",
     variants: [
       {
         name: "FileSaved",
-        type: "sn_medi_token::contracts::MedInvoice::MedInvoiceContract::FileSaved",
+        type: "sn_medi_invoice::contracts::MedInvoice::MedInvoiceContract::FileSaved",
         kind: "nested",
       },
       {
         name: "NewSubscription",
-        type: "sn_medi_token::contracts::MedInvoice::MedInvoiceContract::NewSubscription",
+        type: "sn_medi_invoice::contracts::MedInvoice::MedInvoiceContract::NewSubscription",
         kind: "nested",
       },
       {

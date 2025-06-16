@@ -217,13 +217,58 @@ export const MED_TOKEN_ABI = [
     inputs: [
       {
         name: "initial_tokens",
-        type: "core::integer::u256",
+        type: "core::felt252",
       },
       {
         name: "recipient",
         type: "core::starknet::contract_address::ContractAddress",
       },
     ],
+  },
+  {
+    type: "function",
+    name: "claim_airdrop",
+    inputs: [],
+    outputs: [],
+    state_mutability: "external",
+  },
+  {
+    type: "function",
+    name: "has_claimed_airdrop",
+    inputs: [
+      {
+        name: "address",
+        type: "core::starknet::contract_address::ContractAddress",
+      },
+    ],
+    outputs: [
+      {
+        type: "core::bool",
+      },
+    ],
+    state_mutability: "view",
+  },
+  {
+    type: "function",
+    name: "get_airdrop_count",
+    inputs: [],
+    outputs: [
+      {
+        type: "core::integer::u32",
+      },
+    ],
+    state_mutability: "view",
+  },
+  {
+    type: "function",
+    name: "get_remaining_airdrops",
+    inputs: [],
+    outputs: [
+      {
+        type: "core::integer::u32",
+      },
+    ],
+    state_mutability: "view",
   },
   {
     type: "event",
@@ -288,13 +333,35 @@ export const MED_TOKEN_ABI = [
   },
   {
     type: "event",
-    name: "sn_medi_token::contracts::meditoken::MedToken::Event",
+    name: "meditoken::contracts::meditoken::MedToken::AirdropClaimed",
+    kind: "struct",
+    members: [
+      {
+        name: "recipient",
+        type: "core::starknet::contract_address::ContractAddress",
+        kind: "data",
+      },
+      {
+        name: "amount",
+        type: "core::integer::u256",
+        kind: "data",
+      },
+    ],
+  },
+  {
+    type: "event",
+    name: "meditoken::contracts::meditoken::MedToken::Event",
     kind: "enum",
     variants: [
       {
         name: "ERC20Event",
         type: "openzeppelin_token::erc20::erc20::ERC20Component::Event",
         kind: "flat",
+      },
+      {
+        name: "AirdropClaimed",
+        type: "meditoken::contracts::meditoken::MedToken::AirdropClaimed",
+        kind: "nested",
       },
     ],
   },
