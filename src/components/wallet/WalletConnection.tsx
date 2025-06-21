@@ -22,12 +22,14 @@ import {
   checkmarkCircle,
   alertCircle,
 } from "ionicons/icons";
+import { useTheme } from "../../contexts/ThemeContext";
 
 const WalletConnection: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
   const { address, status } = useAccount();
+  const { isDarkMode } = useTheme();
 
   const isConnected = status === "connected" && address;
 
@@ -69,24 +71,28 @@ const WalletConnection: React.FC = () => {
   return (
     <>
       {!isConnected ? (
-        <IonButton
-          fill="clear"
+        <IonIcon
+          icon={walletOutline}
+          // fill="clear"
           onClick={() => setShowModal(true)}
           color="light"
-        >
-          <IonIcon icon={walletOutline} />
-        </IonButton>
+          size="large"
+          // className="ion-padding-horizontal"
+        />
       ) : (
-        <IonButton
-          fill="clear"
+        <IonIcon
           onClick={() => setShowModal(true)}
           color="success"
-        >
-          <IonIcon icon={checkmarkCircle} />
-        </IonButton>
+          size="large"
+          icon={checkmarkCircle}
+        />
       )}
 
-      <IonModal isOpen={showModal} onDidDismiss={() => setShowModal(false)}>
+      <IonModal
+        isOpen={showModal}
+        onDidDismiss={() => setShowModal(false)}
+        className={isDarkMode ? "dark-theme" : ""}
+      >
         <IonHeader>
           <IonToolbar>
             <IonTitle>

@@ -1,0 +1,222 @@
+/* Files Page Styling */
+.files-page-container {
+  padding: 16px;
+  min-height: 100vh;
+}
+
+.files-page-container .files-icon {
+  display: none; /* Hide the original icon since it's now a full page */
+}
+
+/* Enhanced mobile file list styling */
+@media (max-width: 768px) {
+  .files-page-container {
+    padding: 8px;
+  }
+
+  .files-page-container ion-item {
+    --border-radius: 8px;
+    margin-bottom: 8px;
+  }
+
+  .files-page-container ion-list {
+    background: transparent;
+  }
+}
+
+/* File item enhancements for mobile */
+.files-page-container ion-item {
+  --background: var(--ion-color-light);
+  --color: var(--ion-color-dark);
+  margin-bottom: 4px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.files-page-container ion-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.files-page-container ion-button {
+  --border-radius: 6px;
+}
+
+/* Light Theme Styles for Files Page */
+.light-theme .files-page-container,
+:root .files-page-container {
+  background: #ffffff;
+  color: #000000;
+}
+
+.light-theme .files-modal-header ion-toolbar,
+:root .files-modal-header ion-toolbar {
+  --background: var(--ion-color-primary);
+  --color: #ffffff;
+  --border-color: var(--ion-color-primary-shade);
+}
+
+.light-theme .files-modal-title,
+:root .files-modal-title {
+  color: #ffffff;
+}
+
+.light-theme .files-modal-content,
+:root .files-modal-content {
+  background: #ffffff;
+}
+
+.light-theme .files-scrollable-container,
+:root .files-scrollable-container {
+  background: #ffffff;
+}
+
+.light-theme ion-segment-button,
+:root ion-segment-button {
+  --background: #f8f9fa;
+  --background-checked: var(--ion-color-primary);
+  --color: #000000;
+  --color-checked: #ffffff;
+  --border-color: #e1e4e8;
+}
+
+.light-theme ion-list,
+:root ion-list {
+  background: transparent;
+}
+
+.light-theme ion-item,
+:root ion-item {
+  --background: #ffffff;
+  --color: #000000;
+  --border-color: #e1e4e8;
+}
+
+.light-theme ion-item[color="light"],
+:root ion-item[color="light"] {
+  --background: #f8f9fa;
+  --color: #495057;
+}
+
+.light-theme .file-icon,
+:root .file-icon {
+  color: #6c757d;
+}
+
+.light-theme .document-icon,
+:root .document-icon {
+  color: #007bff;
+}
+
+.light-theme .blockchain-icon,
+:root .blockchain-icon {
+  color: #28a745;
+}
+
+.light-theme .cloud-icon,
+:root .cloud-icon {
+  color: #17a2b8;
+}
+
+.light-theme ion-badge,
+:root ion-badge {
+  --background: var(--ion-color-primary);
+  --color: #ffffff;
+}
+
+.light-theme ion-badge[color="secondary"],
+:root ion-badge[color="secondary"] {
+  --background: #6c757d;
+  --color: #ffffff;
+}
+
+.light-theme ion-badge[color="primary"],
+:root ion-badge[color="primary"] {
+  --background: var(--ion-color-primary);
+  --color: #ffffff;
+}
+
+.light-theme ion-badge[color="tertiary"],
+:root ion-badge[color="tertiary"] {
+  --background: #6f42c1;
+  --color: #ffffff;
+}
+
+/* Dark Theme Styles for Files Page */
+.dark-theme .files-page-container {
+  background: var(--stark-invoice-bg-primary);
+  color: var(--stark-invoice-text-primary);
+}
+
+.dark-theme .files-modal-header ion-toolbar {
+  --background: var(--stark-invoice-bg-secondary);
+  --color: var(--stark-invoice-text-primary);
+  --border-color: var(--stark-invoice-border);
+}
+
+.dark-theme .files-modal-title {
+  color: var(--stark-invoice-text-primary);
+}
+
+.dark-theme .files-modal-content {
+  background: var(--stark-invoice-bg-primary);
+}
+
+.dark-theme .files-scrollable-container {
+  background: var(--stark-invoice-bg-primary);
+}
+
+.dark-theme ion-segment-button {
+  --color: var(--stark-invoice-text-secondary);
+  --color-checked: var(--stark-invoice-accent);
+  --background-checked: var(--stark-invoice-bg-tertiary);
+  --border-color: var(--stark-invoice-border);
+}
+
+.dark-theme ion-list {
+  background: var(--stark-invoice-bg-primary);
+}
+
+.dark-theme ion-item {
+  --background: var(--stark-invoice-bg-primary);
+  --color: var(--stark-invoice-text-primary);
+  --border-color: var(--stark-invoice-border);
+}
+
+.dark-theme ion-item[color="light"] {
+  --background: var(--stark-invoice-bg-tertiary);
+  --color: var(--stark-invoice-accent);
+}
+
+.dark-theme .file-icon {
+  color: var(--stark-invoice-accent);
+}
+
+.dark-theme .document-icon {
+  color: var(--ion-color-secondary);
+}
+
+.dark-theme .blockchain-icon {
+  color: var(--ion-color-primary);
+}
+
+.dark-theme .cloud-icon {
+  color: var(--ion-color-tertiary);
+}
+
+.dark-theme ion-badge {
+  background: var(--stark-invoice-accent);
+  color: var(--stark-invoice-text-primary);
+}
+
+.dark-theme ion-badge[color="secondary"] {
+  background: var(--ion-color-secondary);
+}
+
+.dark-theme ion-badge[color="primary"] {
+  background: var(--ion-color-primary);
+}
+
+.dark-theme ion-badge[color="tertiary"] {
+  background: var(--ion-color-tertiary);
+}

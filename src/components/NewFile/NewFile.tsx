@@ -3,7 +3,9 @@ import * as AppGeneral from "../socialcalc/index.js";
 import { File, Local } from "../Storage/LocalStorage";
 import { DATA } from "../../app-data.js";
 import { IonAlert, IonIcon } from "@ionic/react";
-import { add, documentText } from "ionicons/icons";
+import { add, addCircle, addOutline, documentText } from "ionicons/icons";
+import { useTheme } from "../../contexts/ThemeContext";
+import { addIcons } from "ionicons";
 
 const NewFile: React.FC<{
   file: string;
@@ -14,6 +16,7 @@ const NewFile: React.FC<{
   const [showAlertNewFileCreated, setShowAlertNewFileCreated] = useState(false);
   const [showUnsavedChangesAlert, setShowUnsavedChangesAlert] = useState(false);
   const [originalFileContent, setOriginalFileContent] = useState<string>("");
+  const { isDarkMode } = useTheme();
 
   // Check if current file has unsaved changes
   const hasUnsavedChanges = async (): Promise<boolean> => {
@@ -140,9 +143,9 @@ const NewFile: React.FC<{
   return (
     <React.Fragment>
       <IonIcon
-        icon={documentText}
+        icon={addCircle}
         slot="end"
-        className="ion-padding-end new-file-icon"
+        className="new-file-icon"
         size="large"
         data-testid="new-file-btn"
         onClick={handleNewFileClick}

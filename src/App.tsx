@@ -1,6 +1,21 @@
-import { IonApp, setupIonicReact } from "@ionic/react";
+import {
+  IonApp,
+  IonRouterOutlet,
+  IonTabBar,
+  IonTabButton,
+  IonTabs,
+  IonIcon,
+  IonLabel,
+  setupIonicReact,
+} from "@ionic/react";
+import { IonReactRouter } from "@ionic/react-router";
+import { Route, Redirect } from "react-router-dom";
+import { documentText, folder, menu, settings } from "ionicons/icons";
 import Home from "./pages/Home";
+import FilesPage from "./pages/FilesPage";
+import SettingsPage from "./pages/SettingsPage";
 import { StarknetProviders } from "./providers/StarknetProviders";
+import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 
 /* Core CSS required for Ionic components to work properly */
 import "@ionic/react/css/core.css";
@@ -20,15 +35,60 @@ import "@ionic/react/css/display.css";
 
 /* Theme variables */
 import "./theme/variables.css";
+import "./App.css";
 
 setupIonicReact();
 
+const AppContent: React.FC = () => {
+  const { isDarkMode } = useTheme();
+
+  return (
+    <IonApp className={isDarkMode ? "dark-theme" : "light-theme"}>
+      <StarknetProviders>
+        <IonReactRouter>
+          <IonTabs>
+            <IonRouterOutlet>
+              <Route exact path="/home">
+                <Home />
+              </Route>
+              <Route exact path="/files">
+                <FilesPage />
+              </Route>
+              <Route exact path="/settings">
+                <SettingsPage />
+              </Route>
+              <Route exact path="/">
+                <Redirect to="/home" />
+              </Route>
+            </IonRouterOutlet>
+
+            <IonTabBar slot="bottom">
+              <IonTabButton tab="home" href="/home">
+                <IonIcon icon={documentText} />
+                <IonLabel>Home</IonLabel>
+              </IonTabButton>
+
+              <IonTabButton tab="files" href="/files">
+                <IonIcon icon={folder} />
+                <IonLabel>Files</IonLabel>
+              </IonTabButton>
+
+              <IonTabButton tab="settings" href="/settings">
+                <IonIcon icon={settings} />
+                <IonLabel>settings</IonLabel>
+              </IonTabButton>
+            </IonTabBar>
+          </IonTabs>
+        </IonReactRouter>
+      </StarknetProviders>
+    </IonApp>
+  );
+};
+
 const App: React.FC = () => (
-  <IonApp>
-    <StarknetProviders>
-      <Home />
-    </StarknetProviders>
-  </IonApp>
+  <ThemeProvider>
+    <AppContent />
+  </ThemeProvider>
 );
 
 export default App;

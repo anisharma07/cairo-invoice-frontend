@@ -12,7 +12,9 @@
   box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
   transition: all 0.2s ease;
 }
-
+.hidden-class {
+  /* display: none; */
+}
 .med-token-balance:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4);

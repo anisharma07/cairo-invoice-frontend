@@ -1,15 +1,12 @@
 import {
   IonButton,
   IonContent,
-  IonFab,
-  IonFabButton,
   IonHeader,
   IonIcon,
   IonPage,
   IonPopover,
   IonTitle,
   IonToolbar,
-  IonModal,
   IonButtons,
   IonToast,
   IonCard,
@@ -18,23 +15,21 @@ import {
   IonCardTitle,
   IonBadge,
   IonAlert,
-  IonInput,
 } from "@ionic/react";
-import { APP_NAME, DATA } from "../app-data";
+import { APP_NAME, DATA } from "../app-data-new";
 import * as AppGeneral from "../components/socialcalc/index.js";
 import { useEffect, useState, useRef } from "react";
 import { Local, File } from "../components/Storage/LocalStorage";
 import {
-  menu,
   settings,
   star,
   informationCircle,
-  documentText,
-  folder,
+  menu,
+  pencil,
+  share,
+  save,
 } from "ionicons/icons";
 import "./Home.css";
-import Menu from "../components/Menu/Menu";
-import Files from "../components/Files/Files";
 import NewFile from "../components/NewFile/NewFile";
 import WalletConnection from "../components/wallet/WalletConnection";
 import Subscription from "../components/wallet/Subscription";
@@ -42,19 +37,19 @@ import MedTokenBalance from "../components/wallet/MedTokenBalance";
 import { useAccount } from "@starknet-react/core";
 import { uploadJSONToIPFS } from "../utils/ipfs";
 import { useSaveFile } from "../hooks/useContractWrite";
+import Menu from "../components/Menu/Menu";
+import { useTheme } from "../contexts/ThemeContext";
+import { moon, sunny } from "ionicons/icons";
 
 const Home: React.FC = () => {
   const { address, account } = useAccount();
   const { saveFile, isPending: isSaving } = useSaveFile();
+  const { isDarkMode, toggleDarkMode } = useTheme();
 
   const [showMenu, setShowMenu] = useState(false);
-  const [showPopover, setShowPopover] = useState<{
-    open: boolean;
-    event: Event | undefined;
-  }>({ open: false, event: undefined });
   const [selectedFile, updateSelectedFile] = useState("default");
   const [billType, updateBillType] = useState(1);
-  const [device] = useState("default");
+  const [device] = useState("Android");
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
@@ -461,13 +456,17 @@ const Home: React.FC = () => {
     return (
       <IonButton
         key={footerArray.index}
-        expand="full"
         color="light"
         className="ion-no-margin"
+        style={{
+          whiteSpace: "nowrap",
+          minWidth: "max-content",
+          marginRight: "8px",
+          flexShrink: 0,
+        }}
         onClick={() => {
           updateBillType(footerArray.index);
           activateFooter(footerArray.index);
-          setShowPopover({ open: false, event: undefined });
         }}
       >
         {footerArray.name}
@@ -476,62 +475,19 @@ const Home: React.FC = () => {
   });
 
   return (
-    <IonPage>
+    <IonPage className={isDarkMode ? "dark-theme" : ""}>
       <IonHeader>
         <IonToolbar color="primary">
-          <IonTitle>{APP_NAME}</IonTitle>
-          <IonButtons slot="end">
-            <MedTokenBalance />
-            <WalletConnection />
-            <IonButton
-              fill="clear"
-              onClick={() => setShowSubscriptionModal(true)}
-            >
-              <IonIcon icon={star} />
-            </IonButton>
-          </IonButtons>
-        </IonToolbar>
-      </IonHeader>
-      <IonContent fullscreen>
-        <IonToolbar color="secondary">
           <IonTitle slot="start" className="editing-title">
-            <IonButton
-              fill="clear"
-              size="small"
-              onClick={(e) => {
-                setKeyboardShortcutsEvent(e.nativeEvent);
-                setShowKeyboardShortcuts(true);
-              }}
-              title="Keyboard Shortcuts"
-            >
-              <IonIcon
-                icon={informationCircle}
-                style={{ marginRight: "8px" }}
-              />
-            </IonButton>
-            Editing: {selectedFile}
+            <IonIcon
+              icon={pencil}
+              size="medium"
+              style={{ marginRight: "8px" }}
+            />
+            {selectedFile}
           </IonTitle>
 
-          <IonButtons slot="end">
-            <IonIcon
-              icon={settings}
-              className="ion-padding-end"
-              size="large"
-              onClick={(e) => {
-                setShowPopover({ open: true, event: e.nativeEvent });
-                console.log("Popover clicked");
-              }}
-              style={{ cursor: "pointer" }}
-            />
-
-            <Files
-              store={store}
-              file={selectedFile}
-              updateSelectedFile={updateSelectedFile}
-              updateBillType={updateBillType}
-              data-testid="files-btn"
-            />
-
+          <IonButtons slot="end" className="ion-padding-end">
             <NewFile
               file={selectedFile}
               updateSelectedFile={updateSelectedFile}
@@ -539,125 +495,39 @@ const Home: React.FC = () => {
               billType={billType}
               data-testid="new-file-btn"
             />
-          </IonButtons>
+            <IonIcon
+              icon={share}
+              size="large"
+              onClick={(e) => {
+                setShowMenu(true);
+              }}
+              style={{ cursor: "pointer" }}
+            />
 
-          <IonPopover
-            animated
-            keyboardClose
-            backdropDismiss
-            event={showPopover.event}
-            isOpen={showPopover.open}
-            onDidDismiss={() =>
-              setShowPopover({ open: false, event: undefined })
-            }
+            <WalletConnection />
+          </IonButtons>
+        </IonToolbar>
+      </IonHeader>
+      <IonContent fullscreen>
+        <IonToolbar color="secondary">
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              overflowX: "auto",
+              padding: "8px 16px",
+              width: "100%",
+              alignItems: "center",
+            }}
           >
             {footersList}
-          </IonPopover>
+          </div>
         </IonToolbar>
 
-        {/* Keyboard Shortcuts Popover */}
-        <IonPopover
-          isOpen={showKeyboardShortcuts}
-          event={keyboardShortcutsEvent}
-          onDidDismiss={() => setShowKeyboardShortcuts(false)}
-          showBackdrop={true}
-        >
-          <IonCard style={{ margin: 0, boxShadow: "none" }}>
-            <IonCardHeader>
-              <IonCardTitle
-                style={{ fontSize: "1rem", color: "var(--ion-color-primary)" }}
-              >
-                ⌨️ Keyboard Shortcuts
-              </IonCardTitle>
-            </IonCardHeader>
-            <IonCardContent>
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: "8px" }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <span>Save Locally:</span>
-                  <IonBadge color="primary">Ctrl + S</IonBadge>
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <span>Save to Blockchain:</span>
-                  <IonBadge color="secondary">Ctrl + Shift + S</IonBadge>
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <span>New File:</span>
-                  <IonBadge color="tertiary">Ctrl + N</IonBadge>
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <span>Open Files:</span>
-                  <IonBadge color="warning">Ctrl + O</IonBadge>
-                </div>
-              </div>
-            </IonCardContent>
-          </IonCard>
-        </IonPopover>
-
-        <IonFab vertical="bottom" horizontal="end" slot="fixed">
-          <IonFabButton type="button" onClick={() => setShowMenu(true)}>
-            <IonIcon icon={menu} />
-          </IonFabButton>
-        </IonFab>
-
-        <Menu
-          showM={showMenu}
-          setM={closeMenu}
-          file={selectedFile}
-          updateSelectedFile={updateSelectedFile}
-          store={store}
-          bT={billType}
-        />
-
-        {/* Subscription Modal */}
-        <IonModal
-          isOpen={showSubscriptionModal}
-          onDidDismiss={() => setShowSubscriptionModal(false)}
-        >
-          <IonHeader>
-            <IonToolbar>
-              <IonTitle>Subscription Management</IonTitle>
-              <IonButtons slot="end">
-                <IonButton onClick={() => setShowSubscriptionModal(false)}>
-                  Close
-                </IonButton>
-              </IonButtons>
-            </IonToolbar>
-          </IonHeader>
-          <IonContent>
-            <Subscription />
-          </IonContent>
-        </IonModal>
-
-        <div id="container">
+        <div id="container" className="hidden-class">
           <div id="workbookControl"></div>
           <div id="tableeditor"></div>
-          <div id="msg"></div>
+          {/* <div id="msg"></div> */}
         </div>
 
         {/* Toast for save notifications */}
@@ -722,6 +592,14 @@ const Home: React.FC = () => {
               },
             },
           ]}
+        />
+        <Menu
+          showM={showMenu}
+          setM={() => setShowMenu(false)}
+          file={selectedFile}
+          updateSelectedFile={updateSelectedFile}
+          store={store}
+          bT={billType}
         />
       </IonContent>
     </IonPage>

@@ -11,6 +11,7 @@ import { useAccount } from "@starknet-react/core";
 import { uploadJSONToIPFS } from "../../utils/ipfs";
 import { useSaveFile } from "../../hooks/useContractWrite";
 import { useIsUserSubscribed } from "../../hooks/useContractRead";
+import { useTheme } from "../../contexts/ThemeContext";
 
 const Menu: React.FC<{
   showM: boolean;
@@ -21,6 +22,7 @@ const Menu: React.FC<{
   bT: number;
 }> = (props) => {
   const { address, account } = useAccount();
+  const { isDarkMode } = useTheme();
   const { saveFile, isPending: isSaving } = useSaveFile();
   const { isSubscribed } = useIsUserSubscribed({
     accountAddress: address as `0x${string}` | undefined,
@@ -37,7 +39,9 @@ const Menu: React.FC<{
   const _validateName = async (filename) => {
     filename = filename.trim();
     if (filename === "default" || filename === "Untitled") {
-      setToastMessage("Cannot update default file!");
+      setToastMessage(
+        "cannot update default file! Use Save As Button to save."
+      );
       return false;
     } else if (filename === "" || !filename) {
       setToastMessage("Filename cannot be empty");
@@ -265,7 +269,9 @@ const Menu: React.FC<{
         onDidDismiss={() => setShowAlert1(false)}
         header="Alert Message"
         message={
-          "Cannot update <strong>" + getCurrentFileName() + "</strong> file!"
+          "Cannot update " +
+          getCurrentFileName() +
+          " file! Use Save As Button to save."
         }
         buttons={["Ok"]}
       />
@@ -274,11 +280,7 @@ const Menu: React.FC<{
         isOpen={showAlert2}
         onDidDismiss={() => setShowAlert2(false)}
         header="Save"
-        message={
-          "File <strong>" +
-          getCurrentFileName() +
-          "</strong> updated successfully"
-        }
+        message={"File " + getCurrentFileName() + " updated successfully"}
         buttons={["Ok"]}
       />
       <IonAlert
@@ -303,11 +305,7 @@ const Menu: React.FC<{
         isOpen={showAlert4}
         onDidDismiss={() => setShowAlert4(false)}
         header="Save As"
-        message={
-          "File <strong>" +
-          getCurrentFileName() +
-          "</strong> saved successfully"
-        }
+        message={"File " + getCurrentFileName() + " saved successfully"}
         buttons={["Ok"]}
       />
       <IonToast

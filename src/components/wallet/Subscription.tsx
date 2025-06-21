@@ -33,9 +33,11 @@ import {
   useGetTokenAllowance,
 } from "../../hooks/useContractRead";
 import { useSubscribe, useApproveTokens } from "../../hooks/useContractWrite";
+import { useTheme } from "../../contexts/ThemeContext";
 
 const Subscription: React.FC = () => {
   const { address, status } = useAccount();
+  const { isDarkMode } = useTheme();
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [toastColor, setToastColor] = useState<

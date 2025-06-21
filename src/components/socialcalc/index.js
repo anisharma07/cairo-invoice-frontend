@@ -1,5 +1,5 @@
 const SocialCalc = require("./aspiring/SocialCalc.js");
-
+// require("./autosave.js");
 export function getDeviceType() {
   /* Returns the type of the device */
   var device = "default";

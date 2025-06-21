@@ -11,10 +11,12 @@ import { useAccount, useReadContract } from "@starknet-react/core";
 import { MED_TOKEN_ABI } from "../../abis/medToken";
 import { MED_TOKEN_CONTRACT_ADDRESS } from "../../abis/constants";
 import { type Abi } from "starknet";
+import { useTheme } from "../../contexts/ThemeContext";
 
 const MedTokenBalance: React.FC = () => {
   const { address, status } = useAccount();
   const isConnected = status === "connected" && address;
+  const { isDarkMode } = useTheme();
 
   const {
     data: balance,
