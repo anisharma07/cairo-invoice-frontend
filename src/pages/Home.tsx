@@ -28,6 +28,8 @@ import {
   pencil,
   share,
   save,
+  saveOutline,
+  saveSharp,
 } from "ionicons/icons";
 import "./Home.css";
 import NewFile from "../components/NewFile/NewFile";
@@ -496,7 +498,7 @@ const Home: React.FC = () => {
               data-testid="new-file-btn"
             />
             <IonIcon
-              icon={share}
+              icon={saveSharp}
               size="large"
               onClick={(e) => {
                 setShowMenu(true);
@@ -524,7 +526,7 @@ const Home: React.FC = () => {
           </div>
         </IonToolbar>
 
-        <div id="container" className="hidden-class">
+        <div id="container">
           <div id="workbookControl"></div>
           <div id="tableeditor"></div>
           {/* <div id="msg"></div> */}

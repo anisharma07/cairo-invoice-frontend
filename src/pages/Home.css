@@ -1,6 +1,13 @@
 #container {
   height: min-content;
-  overflow: hidden;
+  overflow: auto;
+  position: relative;
+  width: 100%;
+  min-height: 400px;
+  /* Add smooth scrolling behavior */
+  scroll-behavior: smooth;
+  /* Ensure proper scroll on mobile devices */
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Enhanced Med Token Balance Styling */
@@ -12,9 +19,7 @@
   box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
   transition: all 0.2s ease;
 }
-.hidden-class {
-  /* display: none; */
-}
+
 .med-token-balance:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4);

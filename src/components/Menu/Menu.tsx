@@ -40,7 +40,7 @@ const Menu: React.FC<{
     filename = filename.trim();
     if (filename === "default" || filename === "Untitled") {
       setToastMessage(
-        "cannot update default file! Use Save As Button to save."
+        "cannot update default or Untitled file! Use Save As Button to save."
       );
       return false;
     } else if (filename === "" || !filename) {

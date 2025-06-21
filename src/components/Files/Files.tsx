@@ -46,6 +46,7 @@ import { useGetUserFiles } from "../../hooks/useContractRead";
 import { useTheme } from "../../contexts/ThemeContext";
 import { downloadFromIPFS } from "../../utils/ipfs";
 import { create as createClient } from "@web3-storage/w3up-client";
+import { useHistory } from "react-router-dom";
 
 type DID = `did:${string}:${string}`;
 
@@ -57,6 +58,7 @@ const Files: React.FC<{
 }> = (props) => {
   const { address, account } = useAccount();
   const { isDarkMode } = useTheme();
+  const history = useHistory();
   const {
     files: blockchainFiles,
     isLoading: filesLoading,
@@ -434,6 +436,9 @@ const Files: React.FC<{
       // Show feedback toast similar to blockchain loading
       setToastMessage(`File "${key}" loaded successfully`);
       setShowToast(true);
+
+      // Navigate to Home page after loading the file
+      history.push("/home");
     });
   };
 
