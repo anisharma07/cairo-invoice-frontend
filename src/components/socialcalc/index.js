@@ -501,32 +501,49 @@ export function executeCommand(cmdline) {
   editor.EditorScheduleSheetCommands(cmdline, true, false);
 }
 
-// Simple keydown event listener
-export function addKeydownListener(callback) {
-  const handleKeydown = (event) => {
-    const control = SocialCalc.GetCurrentWorkBookControl();
-    const editor = control.workbook.spreadsheet.editor;
+// Listening to CHANGES::
 
-    const eventData = {
-      key: event.key,
-      keyCode: event.keyCode,
-      ctrlKey: event.ctrlKey,
-      altKey: event.altKey,
-      shiftKey: event.shiftKey,
-      currentCell: editor.ecell ? editor.ecell.coord : null,
-      currentSheet: control.currentSheetButton
-        ? control.currentSheetButton.id
-        : null,
-      timestamp: new Date().toISOString(),
-    };
+export function setupCellChangeListener(callback) {
+  var control = SocialCalc.GetCurrentWorkBookControl();
 
-    callback(eventData);
+  // Add safety check
+  if (!control || !control.workbook || !control.workbook.spreadsheet) {
+    console.warn("Spreadsheet not initialized yet. Retrying in 100ms...");
+    setTimeout(() => setupCellChangeListener(callback), 100);
+    return () => {}; // Return empty cleanup function
+  }
+
+  var editor = control.workbook.spreadsheet.editor;
+
+  // Store original save edit method
+  var originalSaveEdit = SocialCalc.EditorSaveEdit;
+
+  SocialCalc.EditorSaveEdit = function (editor, text) {
+    var coord = editor.ecell.coord;
+    var oldValue = SocialCalc.GetCellContents(editor.context.sheetobj, coord);
+
+    // Call original method
+    var result = originalSaveEdit.call(this, editor, text);
+
+    // Trigger callback if value changed
+    if (callback && oldValue !== text) {
+      var currentControl = SocialCalc.GetCurrentWorkBookControl();
+      if (currentControl && currentControl.currentSheetButton) {
+        callback({
+          coord: coord,
+          oldValue: oldValue,
+          newValue: text,
+          timestamp: new Date(),
+          sheetId: currentControl.currentSheetButton.id,
+        });
+      }
+    }
+
+    return result;
   };
 
-  document.addEventListener("keydown", handleKeydown);
-
-  // Return cleanup function
-  return () => {
-    document.removeEventListener("keydown", handleKeydown);
+  // Return cleanup function that restores original method
+  return function cleanup() {
+    SocialCalc.EditorSaveEdit = originalSaveEdit;
   };
 }

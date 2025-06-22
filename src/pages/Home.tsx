@@ -143,6 +143,53 @@ const Home: React.FC = () => {
     AppGeneral.initializeApp(JSON.stringify(data));
   }, []);
 
+  const [autoSaveTimer, setAutoSaveTimer] = useState<NodeJS.Timeout | null>(
+    null
+  );
+
+  useEffect(() => {
+    const handleAutoSave = () => {
+      if (selectedFile === "default") {
+        return;
+      }
+      console.log("Auto-saving file...");
+      const content = encodeURIComponent(AppGeneral.getSpreadsheetContent());
+      const data = store._getFile(selectedFile);
+      const file = new File(
+        (data as any)?.created || new Date().toString(),
+        new Date().toString(),
+        content,
+        selectedFile,
+        billType
+      );
+      store._saveFile(file);
+      updateSelectedFile(selectedFile);
+    };
+
+    const debouncedAutoSave = () => {
+      if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer);
+      }
+      const newTimer = setTimeout(() => {
+        handleAutoSave();
+        setAutoSaveTimer(null);
+      }, 2000);
+
+      setAutoSaveTimer(newTimer);
+    };
+
+    const removeListener = AppGeneral.setupCellChangeListener((_) => {
+      debouncedAutoSave();
+    });
+
+    return () => {
+      removeListener();
+      if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer);
+      }
+    };
+  }, [selectedFile, billType, autoSaveTimer]);
+
   useEffect(() => {
     activateFooter(billType);
   }, [billType]);
