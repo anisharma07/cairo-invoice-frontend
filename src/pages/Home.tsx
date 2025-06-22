@@ -14,7 +14,13 @@ import { APP_NAME, DATA } from "../app-data-new";
 import * as AppGeneral from "../components/socialcalc/index.js";
 import { useEffect, useState, useRef } from "react";
 import { Local, File } from "../components/Storage/LocalStorage";
-import { pencil, saveSharp } from "ionicons/icons";
+import {
+  checkmark,
+  checkmarkCircle,
+  pencil,
+  saveSharp,
+  syncOutline,
+} from "ionicons/icons";
 import "./Home.css";
 import NewFile from "../components/NewFile/NewFile";
 import WalletConnection from "../components/wallet/WalletConnection";
@@ -146,26 +152,24 @@ const Home: React.FC = () => {
   const [autoSaveTimer, setAutoSaveTimer] = useState<NodeJS.Timeout | null>(
     null
   );
-
+  const handleAutoSave = () => {
+    if (selectedFile === "default") {
+      return;
+    }
+    console.log("Auto-saving file...");
+    const content = encodeURIComponent(AppGeneral.getSpreadsheetContent());
+    const data = store._getFile(selectedFile);
+    const file = new File(
+      (data as any)?.created || new Date().toString(),
+      new Date().toString(),
+      content,
+      selectedFile,
+      billType
+    );
+    store._saveFile(file);
+    updateSelectedFile(selectedFile);
+  };
   useEffect(() => {
-    const handleAutoSave = () => {
-      if (selectedFile === "default") {
-        return;
-      }
-      console.log("Auto-saving file...");
-      const content = encodeURIComponent(AppGeneral.getSpreadsheetContent());
-      const data = store._getFile(selectedFile);
-      const file = new File(
-        (data as any)?.created || new Date().toString(),
-        new Date().toString(),
-        content,
-        selectedFile,
-        billType
-      );
-      store._saveFile(file);
-      updateSelectedFile(selectedFile);
-    };
-
     const debouncedAutoSave = () => {
       if (autoSaveTimer) {
         clearTimeout(autoSaveTimer);
@@ -173,7 +177,7 @@ const Home: React.FC = () => {
       const newTimer = setTimeout(() => {
         handleAutoSave();
         setAutoSaveTimer(null);
-      }, 2000);
+      }, 1000);
 
       setAutoSaveTimer(newTimer);
     };
@@ -226,12 +230,38 @@ const Home: React.FC = () => {
       <IonHeader>
         <IonToolbar color="primary">
           <IonTitle slot="start" className="editing-title">
-            <IonIcon
-              icon={pencil}
-              size="medium"
-              style={{ marginRight: "8px" }}
-            />
-            {selectedFile}
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <IonIcon
+                icon={pencil}
+                size="medium"
+                style={{ marginRight: "8px" }}
+              />
+              <span>{selectedFile}</span>
+              {selectedFile !== "default" && (
+                <IonButton
+                  fill="clear"
+                  size="small"
+                  onClick={handleAutoSave}
+                  disabled={autoSaveTimer !== null}
+                  style={{
+                    marginLeft: "12px",
+                    minWidth: "auto",
+                    height: "32px",
+                  }}
+                >
+                  <IonIcon
+                    icon={autoSaveTimer ? syncOutline : checkmarkCircle}
+                    size="small"
+                    color={"success"}
+                    style={{
+                      animation: autoSaveTimer
+                        ? "spin 1s linear infinite"
+                        : "none",
+                    }}
+                  />
+                </IonButton>
+              )}
+            </div>
           </IonTitle>
 
           <IonButtons slot="end" className="ion-padding-end">
@@ -270,7 +300,7 @@ const Home: React.FC = () => {
         <div id="container">
           <div id="workbookControl"></div>
           <div id="tableeditor"></div>
-          {/* <div id="msg"></div> */}
+          <div id="msg"></div>
         </div>
 
         {/* Toast for save notifications */}

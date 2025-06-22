@@ -1,6 +1,6 @@
 #container {
   /* border: #eb24fd; */
-  border: 10px solid #eb24fd;
+  /* border: 10px solid #eb24fd; */
   /* border-width: 20px; */
   /* margin: 100px; */
   /* height: min-content; */
@@ -220,6 +220,22 @@
   border-radius: 6px;
   padding: 6px;
   transform: scale(1.05);
+}
+
+/* Spinning animation for auto-save icon */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Save button styling in header */
+.editing-title {
+  display: flex !important;
+  align-items: center !important;
 }
 
 /* Enhanced Toolbar Icons */
