@@ -23,15 +23,16 @@ import { uploadJSONToIPFS } from "../utils/ipfs";
 import { useSaveFile } from "../hooks/useContractWrite";
 import Menu from "../components/Menu/Menu";
 import { useTheme } from "../contexts/ThemeContext";
+import { useInvoice } from "../contexts/InvoiceContext";
 
 const Home: React.FC = () => {
   const { address } = useAccount();
   const { saveFile, isPending: isSaving } = useSaveFile();
   const { isDarkMode } = useTheme();
+  const { selectedFile, billType, store, updateSelectedFile, updateBillType } =
+    useInvoice();
 
   const [showMenu, setShowMenu] = useState(false);
-  const [selectedFile, updateSelectedFile] = useState("default");
-  const [billType, updateBillType] = useState(1);
   const [device] = useState("Android");
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
@@ -44,8 +45,6 @@ const Home: React.FC = () => {
   const [saveAsOperation, setSaveAsOperation] = useState<
     "local" | "blockchain" | null
   >(null);
-
-  const store = new Local();
 
   const activateFooter = (footer) => {
     AppGeneral.activateFooterButton(footer);
@@ -185,13 +184,7 @@ const Home: React.FC = () => {
           </IonTitle>
 
           <IonButtons slot="end" className="ion-padding-end">
-            <NewFile
-              file={selectedFile}
-              updateSelectedFile={updateSelectedFile}
-              store={store}
-              billType={billType}
-              data-testid="new-file-btn"
-            />
+            <NewFile data-testid="new-file-btn" />
             <IonIcon
               icon={saveSharp}
               size="large"
@@ -290,14 +283,7 @@ const Home: React.FC = () => {
             },
           ]}
         />
-        <Menu
-          showM={showMenu}
-          setM={() => setShowMenu(false)}
-          file={selectedFile}
-          updateSelectedFile={updateSelectedFile}
-          store={store}
-          bT={billType}
-        />
+        <Menu showM={showMenu} setM={() => setShowMenu(false)} />
       </IonContent>
     </IonPage>
   );

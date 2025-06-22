@@ -1,15 +1,14 @@
-import React, { useState } from "react";
+import React from "react";
 import { IonContent, IonPage } from "@ionic/react";
 import Files from "../components/Files/Files";
-import { Local } from "../components/Storage/LocalStorage";
 import { useTheme } from "../contexts/ThemeContext";
+import { useInvoice } from "../contexts/InvoiceContext";
 import "./FilesPage.css";
 
 const FilesPage: React.FC = () => {
-  const [selectedFile, updateSelectedFile] = useState("default");
-  const [billType, updateBillType] = useState(1);
-  const store = new Local();
   const { isDarkMode } = useTheme();
+  const { selectedFile, billType, store, updateSelectedFile, updateBillType } =
+    useInvoice();
 
   return (
     <IonPage className={isDarkMode ? "dark-theme" : ""}>

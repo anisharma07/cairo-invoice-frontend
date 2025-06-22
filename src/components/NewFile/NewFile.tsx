@@ -5,18 +5,15 @@ import { DATA } from "../../app-data.js";
 import { IonAlert, IonIcon } from "@ionic/react";
 import { add, addCircle, addOutline, documentText } from "ionicons/icons";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useInvoice } from "../../contexts/InvoiceContext";
 import { addIcons } from "ionicons";
 
-const NewFile: React.FC<{
-  file: string;
-  updateSelectedFile: Function;
-  store: Local;
-  billType: number;
-}> = (props) => {
+const NewFile: React.FC = () => {
   const [showAlertNewFileCreated, setShowAlertNewFileCreated] = useState(false);
   const [showUnsavedChangesAlert, setShowUnsavedChangesAlert] = useState(false);
   const [originalFileContent, setOriginalFileContent] = useState<string>("");
   const { isDarkMode } = useTheme();
+  const { selectedFile, billType, store, updateSelectedFile } = useInvoice();
 
   // Check if current file has unsaved changes
   const hasUnsavedChanges = async (): Promise<boolean> => {
@@ -24,7 +21,7 @@ const NewFile: React.FC<{
       const currentContent = AppGeneral.getSpreadsheetContent();
 
       // If it's the default file, check if content differs from template
-      if (props.file === "default") {
+      if (selectedFile === "default") {
         const defaultTemplate = DATA["home"][AppGeneral.getDeviceType()]["msc"];
         const templateContent = JSON.stringify(defaultTemplate);
 
@@ -38,7 +35,7 @@ const NewFile: React.FC<{
 
       // For existing files, compare current content with saved content
       try {
-        const savedData = await props.store._getFile(props.file);
+        const savedData = await store._getFile(selectedFile);
 
         if (!savedData || !savedData.content) {
           // File doesn't exist in storage or has no content, check against template
@@ -81,30 +78,30 @@ const NewFile: React.FC<{
 
   const createNewFile = () => {
     // Save current file if it's not default
-    if (props.file !== "default") {
+    if (selectedFile !== "default") {
       const content = encodeURIComponent(AppGeneral.getSpreadsheetContent());
-      const data = props.store._getFile(props.file);
+      const data = store._getFile(selectedFile);
       const file = new File(
         (data as any)?.created || new Date().toString(),
         new Date().toString(),
         content,
-        props.file,
-        props.billType
+        selectedFile,
+        billType
       );
-      props.store._saveFile(file);
-      props.updateSelectedFile(props.file);
+      store._saveFile(file);
+      updateSelectedFile(selectedFile);
     }
 
     // Create new file with default template
     const msc = DATA["home"][AppGeneral.getDeviceType()]["msc"];
     AppGeneral.viewFile("default", JSON.stringify(msc));
-    props.updateSelectedFile("default");
+    updateSelectedFile("default");
     setShowAlertNewFileCreated(true);
   };
 
   const saveCurrentAndCreateNew = () => {
     // Save current file before creating new one
-    if (props.file === "default") {
+    if (selectedFile === "default") {
       // For default files, create a timestamped file name
       const timestamp =
         new Date().toISOString().replace(/[:.]/g, "-").split("T")[0] +
@@ -118,21 +115,21 @@ const NewFile: React.FC<{
         new Date().toString(),
         content,
         fileName,
-        props.billType
+        billType
       );
-      props.store._saveFile(file);
+      store._saveFile(file);
     } else {
       // Save existing file
       const content = encodeURIComponent(AppGeneral.getSpreadsheetContent());
-      const data = props.store._getFile(props.file);
+      const data = store._getFile(selectedFile);
       const file = new File(
         (data as any)?.created || new Date().toString(),
         new Date().toString(),
         content,
-        props.file,
-        props.billType
+        selectedFile,
+        billType
       );
-      props.store._saveFile(file);
+      store._saveFile(file);
     }
 
     // Now create new file

@@ -39,14 +39,13 @@ import Subscription from "../components/wallet/Subscription";
 import { useAccount, useConnect, useDisconnect } from "@starknet-react/core";
 import { useGetUserTokens } from "../hooks/useContractRead";
 import { useTheme } from "../contexts/ThemeContext";
+import { useInvoice } from "../contexts/InvoiceContext";
 import "./SettingsPage.css";
 
 const SettingsPage: React.FC = () => {
-  const [selectedFile, updateSelectedFile] = useState("default");
-  const [billType, updateBillType] = useState(1);
   const [showMenu, setShowMenu] = useState(false);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
-  const store = new Local();
+  const { billType, updateBillType } = useInvoice();
 
   const { address, status } = useAccount();
   const { connect, connectors } = useConnect();
@@ -320,14 +319,7 @@ const SettingsPage: React.FC = () => {
         </div>
 
         {/* Menu Component (Action Sheet) */}
-        <Menu
-          showM={showMenu}
-          setM={() => setShowMenu(false)}
-          file={selectedFile}
-          updateSelectedFile={updateSelectedFile}
-          store={store}
-          bT={billType}
-        />
+        <Menu showM={showMenu} setM={() => setShowMenu(false)} />
 
         {/* Subscription Modal */}
         <Subscription />

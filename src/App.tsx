@@ -16,6 +16,7 @@ import FilesPage from "./pages/FilesPage";
 import SettingsPage from "./pages/SettingsPage";
 import { StarknetProviders } from "./providers/StarknetProviders";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
+import { InvoiceProvider } from "./contexts/InvoiceContext";
 
 /* Core CSS required for Ionic components to work properly */
 import "@ionic/react/css/core.css";
@@ -45,41 +46,43 @@ const AppContent: React.FC = () => {
   return (
     <IonApp className={isDarkMode ? "dark-theme" : "light-theme"}>
       <StarknetProviders>
-        <IonReactRouter>
-          <IonTabs>
-            <IonRouterOutlet>
-              <Route exact path="/home">
-                <Home />
-              </Route>
-              <Route exact path="/files">
-                <FilesPage />
-              </Route>
-              <Route exact path="/settings">
-                <SettingsPage />
-              </Route>
-              <Route exact path="/">
-                <Redirect to="/home" />
-              </Route>
-            </IonRouterOutlet>
+        <InvoiceProvider>
+          <IonReactRouter>
+            <IonTabs>
+              <IonRouterOutlet>
+                <Route exact path="/home">
+                  <Home />
+                </Route>
+                <Route exact path="/files">
+                  <FilesPage />
+                </Route>
+                <Route exact path="/settings">
+                  <SettingsPage />
+                </Route>
+                <Route exact path="/">
+                  <Redirect to="/home" />
+                </Route>
+              </IonRouterOutlet>
 
-            <IonTabBar slot="bottom">
-              <IonTabButton tab="home" href="/home">
-                <IonIcon icon={documentText} />
-                <IonLabel>Home</IonLabel>
-              </IonTabButton>
+              <IonTabBar slot="bottom">
+                <IonTabButton tab="home" href="/home">
+                  <IonIcon icon={documentText} />
+                  <IonLabel>Home</IonLabel>
+                </IonTabButton>
 
-              <IonTabButton tab="files" href="/files">
-                <IonIcon icon={folder} />
-                <IonLabel>Files</IonLabel>
-              </IonTabButton>
+                <IonTabButton tab="files" href="/files">
+                  <IonIcon icon={folder} />
+                  <IonLabel>Files</IonLabel>
+                </IonTabButton>
 
-              <IonTabButton tab="settings" href="/settings">
-                <IonIcon icon={settings} />
-                <IonLabel>settings</IonLabel>
-              </IonTabButton>
-            </IonTabBar>
-          </IonTabs>
-        </IonReactRouter>
+                <IonTabButton tab="settings" href="/settings">
+                  <IonIcon icon={settings} />
+                  <IonLabel>settings</IonLabel>
+                </IonTabButton>
+              </IonTabBar>
+            </IonTabs>
+          </IonReactRouter>
+        </InvoiceProvider>
       </StarknetProviders>
     </IonApp>
   );

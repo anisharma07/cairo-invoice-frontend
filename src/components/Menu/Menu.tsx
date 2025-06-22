@@ -12,17 +12,15 @@ import { uploadJSONToIPFS } from "../../utils/ipfs";
 import { useSaveFile } from "../../hooks/useContractWrite";
 import { useIsUserSubscribed } from "../../hooks/useContractRead";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useInvoice } from "../../contexts/InvoiceContext";
 
 const Menu: React.FC<{
   showM: boolean;
   setM: Function;
-  file: string;
-  updateSelectedFile: Function;
-  store: Local;
-  bT: number;
 }> = (props) => {
   const { address, account } = useAccount();
   const { isDarkMode } = useTheme();
+  const { selectedFile, billType, store, updateSelectedFile } = useInvoice();
   const { saveFile, isPending: isSaving } = useSaveFile();
   const { isSubscribed } = useIsUserSubscribed({
     accountAddress: address as `0x${string}` | undefined,
@@ -52,7 +50,7 @@ const Menu: React.FC<{
     } else if (/^[a-zA-Z0-9- ]*$/.test(filename) === false) {
       setToastMessage("Special Characters cannot be used");
       return false;
-    } else if (await props.store._checkKey(filename)) {
+    } else if (await store._checkKey(filename)) {
       setToastMessage("Filename already exists");
       return false;
     }
@@ -60,7 +58,7 @@ const Menu: React.FC<{
   };
 
   const getCurrentFileName = () => {
-    return props.file;
+    return selectedFile;
   };
 
   const _formatString = (filename) => {
@@ -84,26 +82,26 @@ const Menu: React.FC<{
     }
   };
   const doSave = () => {
-    if (props.file === "default") {
+    if (selectedFile === "default") {
       setShowAlert1(true);
       return;
     }
     const content = encodeURIComponent(AppGeneral.getSpreadsheetContent());
-    const data = props.store._getFile(props.file);
+    const data = store._getFile(selectedFile);
     const file = new File(
       (data as any).created,
       new Date().toString(),
       content,
-      props.file,
-      props.bT
+      selectedFile,
+      billType
     );
-    props.store._saveFile(file);
-    props.updateSelectedFile(props.file);
+    store._saveFile(file);
+    updateSelectedFile(selectedFile);
     setShowAlert2(true);
   };
 
   const doSaveToBlockchain = async () => {
-    if (props.file === "default") {
+    if (selectedFile === "default") {
       setShowAlert1(true);
       return;
     }
@@ -132,10 +130,10 @@ const Menu: React.FC<{
 
       // Create file metadata
       const fileData = {
-        fileName: props.file,
+        fileName: selectedFile,
         content: content,
         timestamp: new Date().toISOString(),
-        billType: props.bT,
+        billType: billType,
         creator: address,
       };
 
@@ -144,18 +142,18 @@ const Menu: React.FC<{
       console.log("File uploaded to IPFS:", ipfsHash);
 
       // Save to blockchain
-      await saveFile(props.file, ipfsHash);
+      await saveFile(selectedFile, ipfsHash);
 
       // Also save locally
       const localFile = new File(
         new Date().toString(),
         new Date().toString(),
         encodeURIComponent(content),
-        props.file,
-        props.bT
+        selectedFile,
+        billType
       );
-      props.store._saveFile(localFile);
-      props.updateSelectedFile(props.file);
+      store._saveFile(localFile);
+      updateSelectedFile(selectedFile);
 
       setToastMessage(
         `File saved to blockchain! IPFS: ${ipfsHash.substring(0, 10)}...`
@@ -181,12 +179,12 @@ const Menu: React.FC<{
           new Date().toString(),
           content,
           filename,
-          props.bT
+          billType
         );
         // const data = { created: file.created, modified: file.modified, content: file.content, password: file.password };
         // console.log(JSON.stringify(data));
-        props.store._saveFile(file);
-        props.updateSelectedFile(filename);
+        store._saveFile(file);
+        updateSelectedFile(filename);
         setShowAlert4(true);
       } else {
         setShowToast1(true);
