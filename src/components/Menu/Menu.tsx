@@ -219,22 +219,15 @@ const Menu: React.FC<{
         isOpen={props.showM}
         onDidDismiss={() => props.setM()}
         buttons={[
-          {
-            text: "Save Locally",
-            icon: saveOutline,
-            handler: () => {
-              doSave();
-              console.log("Save clicked");
-            },
-          },
-          {
-            text: "Save to Blockchain",
-            icon: cloudUpload,
-            handler: () => {
-              doSaveToBlockchain();
-              console.log("Save to Blockchain clicked");
-            },
-          },
+          // {
+          //   text: "Save Locally",
+          //   icon: saveOutline,
+          //   handler: () => {
+          //     doSave();
+          //     console.log("Save clicked");
+          //   },
+          // },
+
           {
             text: "Save As",
             icon: save,
@@ -257,6 +250,14 @@ const Menu: React.FC<{
             handler: () => {
               sendEmail();
               console.log("Email clicked");
+            },
+          },
+          {
+            text: "Upload to Blockchain",
+            icon: cloudUpload,
+            handler: () => {
+              doSaveToBlockchain();
+              console.log("Save to Blockchain clicked");
             },
           },
         ]}

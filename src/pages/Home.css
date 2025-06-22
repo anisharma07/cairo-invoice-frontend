@@ -1,13 +1,17 @@
 #container {
-  height: min-content;
-  overflow: auto;
+  /* border: #eb24fd; */
+  border: 10px solid #eb24fd;
+  /* border-width: 20px; */
+  /* margin: 100px; */
+  /* height: min-content; */
+  /* overflow: auto; */
   /* position: relative; */
-  width: 100%;
-  min-height: 400px;
+  /* width: 100%; */
+  /* min-height: 400px; */
   /* Add smooth scrolling behavior */
-  scroll-behavior: smooth;
+  /* scroll-behavior: smooth; */
   /* Ensure proper scroll on mobile devices */
-  -webkit-overflow-scrolling: touch;
+  /* -webkit-overflow-scrolling: touch; */
 }
 
 /* Dark mode fixes for Home page */

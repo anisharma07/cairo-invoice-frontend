@@ -512,142 +512,41 @@ const Files: React.FC<{
 
     return sortedGroups;
   };
-  const renderFileList = async () => {
-    let content;
 
-    if (fileSource === "local") {
-      const localFiles = await props.store._getAllFiles();
-      const filesArray = Object.keys(localFiles).map((key) => ({
-        key,
-        name: key,
-        date: localFiles[key],
-        type: "local",
-      }));
+  useEffect(() => {
+    const renderFileList = async () => {
+      let content;
 
-      if (filesArray.length === 0) {
-        content = (
-          <IonList>
-            <IonItem>
-              <IonLabel>No local files found</IonLabel>
-            </IonItem>
-          </IonList>
-        );
-      } else {
-        const groupedFiles = groupFilesByDate(filesArray);
-
-        content = (
-          <IonList>
-            {Object.entries(groupedFiles).map(([dateHeader, files]) => (
-              <div key={`local-group-${dateHeader}`}>
-                {/* Date Header */}
-                <IonItem color="light">
-                  <IonLabel>
-                    <h2
-                      style={{
-                        fontWeight: "bold",
-                        color: "var(--ion-color-primary)",
-                      }}
-                    >
-                      {dateHeader}
-                    </h2>
-                  </IonLabel>
-                </IonItem>
-
-                {/* Files under this date */}
-                {(files as any[]).map((file) => (
-                  <IonItemGroup key={`local-${file.key}`}>
-                    <IonItem>
-                      <IonIcon
-                        icon={documentText}
-                        slot="start"
-                        className="file-icon document-icon"
-                      />
-                      <IonLabel>
-                        <h3>{file.name}</h3>
-                        <p>Local file • {_formatDate(file.date)}</p>
-                      </IonLabel>
-                      <IonBadge color="secondary" slot="end">
-                        LOCAL
-                      </IonBadge>
-
-                      <IonIcon
-                        icon={create}
-                        color="warning"
-                        slot="end"
-                        size="large"
-                        onClick={() => {
-                          setListFiles(false);
-                          editFile(file.key);
-                        }}
-                      />
-
-                      <IonIcon
-                        icon={trash}
-                        color="danger"
-                        slot="end"
-                        size="large"
-                        onClick={() => {
-                          setListFiles(false);
-                          deleteFile(file.key);
-                        }}
-                      />
-                    </IonItem>
-                  </IonItemGroup>
-                ))}
-              </div>
-            ))}
-          </IonList>
-        );
-      }
-    } else if (fileSource === "blockchain") {
-      // Create blockchain files list with date grouping
-      if (!blockchainFiles || blockchainFiles.length === 0) {
-        content = (
-          <IonList>
-            {filesLoading && (
-              <IonItem>
-                <IonSpinner name="circular" slot="start" />
-                <IonLabel>Loading blockchain files...</IonLabel>
-              </IonItem>
-            )}
-
-            {!filesLoading && (
-              <IonItem>
-                <IonLabel>No blockchain files found</IonLabel>
-              </IonItem>
-            )}
-          </IonList>
-        );
-      } else {
-        const filesArray = blockchainFiles.map((file, index) => ({
-          ...file,
-          date: new Date(Number(file.timestamp) * 1000).toISOString(),
-          type: "blockchain",
-          index,
+      if (fileSource === "local") {
+        const localFiles = await props.store._getAllFiles();
+        const filesArray = Object.keys(localFiles).map((key) => ({
+          key,
+          name: key,
+          date: localFiles[key],
+          type: "local",
         }));
 
-        const groupedFiles = groupFilesByDate(filesArray);
-
-        content = (
-          <IonList>
-            {filesLoading && (
+        if (filesArray.length === 0) {
+          content = (
+            <IonList>
               <IonItem>
-                <IonSpinner name="circular" slot="start" />
-                <IonLabel>Loading blockchain files...</IonLabel>
+                <IonLabel>No local files found</IonLabel>
               </IonItem>
-            )}
+            </IonList>
+          );
+        } else {
+          const groupedFiles = groupFilesByDate(filesArray);
 
-            {!filesLoading &&
-              Object.entries(groupedFiles).map(([dateHeader, files]) => (
-                <div key={`blockchain-group-${dateHeader}`}>
+          content = (
+            <IonList>
+              {Object.entries(groupedFiles).map(([dateHeader, files]) => (
+                <div key={`local-group-${dateHeader}`}>
                   {/* Date Header */}
-                  <IonItem color="light">
+                  <IonItem color="light" className="date-header-item">
                     <IonLabel>
                       <h2
-                        style={{
-                          fontWeight: "bold",
-                          color: "var(--ion-color-primary)",
-                        }}
+                        className="date-header-text"
+                        style={{ color: "var(--ion-color-primary)" }}
                       >
                         {dateHeader}
                       </h2>
@@ -655,270 +554,379 @@ const Files: React.FC<{
                   </IonItem>
 
                   {/* Files under this date */}
-                  {(files as any[]).map((file) => {
-                    const isLoading = loadingFile === file.file_name;
-                    return (
-                      <IonItemGroup key={`blockchain-${file.index}`}>
-                        <IonItem>
-                          <IonIcon
-                            icon={cloudOutline}
-                            slot="start"
-                            className="file-icon blockchain-icon"
-                          />
-                          <IonLabel>
-                            <h3>{file.file_name}</h3>
-                            <p>
-                              Blockchain file •{" "}
-                              {new Date(
-                                Number(file.timestamp) * 1000
-                              ).toLocaleString()}
-                            </p>
-                            <p>IPFS: {file.ipfs_cid.substring(0, 10)}...</p>
-                          </IonLabel>
-                          <IonBadge color="primary" slot="end">
-                            BLOCKCHAIN
-                          </IonBadge>
+                  {(files as any[]).map((file) => (
+                    <IonItemGroup key={`local-${file.key}`}>
+                      <IonItem
+                        className="mobile-file-item"
+                        onClick={() => {
+                          setListFiles(false);
+                          editFile(file.key);
+                        }}
+                      >
+                        <IonIcon
+                          icon={documentText}
+                          slot="start"
+                          className="file-icon document-icon"
+                        />
+                        <IonLabel className="mobile-file-label">
+                          <h3>{file.name}</h3>
+                          <p>Local file • {_formatDate(file.date)}</p>
+                        </IonLabel>
+                        <IonBadge
+                          color="secondary"
+                          slot="end"
+                          className="mobile-badge"
+                        >
+                          LOCAL
+                        </IonBadge>
 
-                          {isLoading ? (
-                            <IonSpinner name="circular" slot="end" />
-                          ) : (
-                            <IonIcon
-                              icon={download}
-                              color="primary"
-                              slot="end"
-                              size="large"
-                              onClick={() => loadFromBlockchain(file)}
-                            />
-                          )}
-                        </IonItem>
-                      </IonItemGroup>
-                    );
-                  })}
+                        <IonIcon
+                          icon={trash}
+                          color="danger"
+                          slot="end"
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setListFiles(false);
+                            deleteFile(file.key);
+                          }}
+                        />
+                      </IonItem>
+                    </IonItemGroup>
+                  ))}
                 </div>
               ))}
-          </IonList>
-        );
-      }
-    } else {
-      // IPFS files section
-      if (showEmailInput) {
-        content = (
-          <IonCard>
-            <IonCardHeader>
-              <IonCardTitle>Set Up Your IPFS Account</IonCardTitle>
-            </IonCardHeader>
-            <IonCardContent>
-              <p>Enter your email to create or access your IPFS space</p>
-              <IonInput
-                type="email"
-                placeholder="Your email address"
-                value={userEmail}
-                onIonChange={(e) => setUserEmail(e.detail.value!)}
-              />
-              <IonInput
-                type="text"
-                placeholder="Your Space DID KEY"
-                value={userSpace}
-                onIonChange={(e) => setUserSpace(e.detail.value!)}
-              />
-              <IonButton
-                expand="block"
-                onClick={handleEmailSubmit}
-                disabled={loading}
-              >
-                {loading ? <IonSpinner name="dots" /> : "Continue"}
-              </IonButton>
-            </IonCardContent>
-          </IonCard>
-        );
-      } else if (showSpaceSetup) {
-        content = (
-          <IonCard>
-            <IonCardHeader>
-              <IonCardTitle>Create Your IPFS Space</IonCardTitle>
-            </IonCardHeader>
-            <IonCardContent>
-              <p>
-                You don't have any IPFS spaces yet. Create one to start storing
-                your files.
-              </p>
-              <IonButton
-                expand="block"
-                onClick={createUserSpace}
-                disabled={isSpaceCreating}
-              >
-                {isSpaceCreating ? <IonSpinner name="dots" /> : "Create Space"}
-              </IonButton>
-            </IonCardContent>
-          </IonCard>
-        );
-      } else if (!ipfsClient || !userSpace) {
-        content = (
-          <IonCard>
-            <IonCardHeader>
-              <IonCardTitle>IPFS Setup Required</IonCardTitle>
-            </IonCardHeader>
-            <IonCardContent>
-              <p>Please set up your IPFS account to access your files.</p>
-              <IonButton expand="block" onClick={() => setShowEmailInput(true)}>
-                Set Up IPFS Account
-              </IonButton>
-            </IonCardContent>
-          </IonCard>
-        );
-      } else {
-        // Show IPFS files with date grouping
-        if (ipfsFiles.length === 0) {
+            </IonList>
+          );
+        }
+      } else if (fileSource === "blockchain") {
+        // Create blockchain files list with date grouping
+        if (!blockchainFiles || blockchainFiles.length === 0) {
           content = (
-            <>
-              <IonCard>
-                <IonCardContent>
-                  <p>
-                    <strong>Your IPFS Space:</strong>{" "}
-                    {userSpace ? userSpace.substring(0, 20) + "..." : "Not set"}
-                  </p>
-                  <IonButton
-                    expand="block"
-                    onClick={fetchIPFSFiles}
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <IonSpinner name="dots" />
-                    ) : (
-                      "Refresh IPFS Files"
-                    )}
-                  </IonButton>
-                </IonCardContent>
-              </IonCard>
+            <IonList>
+              {filesLoading && (
+                <IonItem>
+                  <IonSpinner name="circular" slot="start" />
+                  <IonLabel>Loading blockchain files...</IonLabel>
+                </IonItem>
+              )}
 
-              <IonList>
-                {loading ? (
-                  <IonItem>
-                    <IonSpinner name="circular" slot="start" />
-                    <IonLabel>Loading files from IPFS...</IonLabel>
-                  </IonItem>
-                ) : (
-                  <IonItem>
-                    <IonLabel>No IPFS files found</IonLabel>
-                  </IonItem>
-                )}
-              </IonList>
-            </>
+              {!filesLoading && (
+                <IonItem>
+                  <IonLabel>No blockchain files found</IonLabel>
+                </IonItem>
+              )}
+            </IonList>
           );
         } else {
-          const filesArray = ipfsFiles.map((file, index) => ({
+          const filesArray = blockchainFiles.map((file, index) => ({
             ...file,
-            date: file.modified,
-            type: "ipfs",
+            date: new Date(Number(file.timestamp) * 1000).toISOString(),
+            type: "blockchain",
             index,
           }));
 
           const groupedFiles = groupFilesByDate(filesArray);
 
           content = (
-            <>
-              <IonCard>
-                <IonCardContent>
-                  <p>
-                    <strong>Your IPFS Space:</strong>{" "}
-                    {userSpace ? userSpace.substring(0, 20) + "..." : "Not set"}
-                  </p>
-                  <IonButton
-                    expand="block"
-                    onClick={fetchIPFSFiles}
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <IonSpinner name="dots" />
-                    ) : (
-                      "Refresh IPFS Files"
-                    )}
-                  </IonButton>
-                </IonCardContent>
-              </IonCard>
+            <IonList>
+              {filesLoading && (
+                <IonItem>
+                  <IonSpinner name="circular" slot="start" />
+                  <IonLabel>Loading blockchain files...</IonLabel>
+                </IonItem>
+              )}
 
-              <IonList>
-                {loading ? (
-                  <IonItem>
-                    <IonSpinner name="circular" slot="start" />
-                    <IonLabel>Loading files from IPFS...</IonLabel>
-                  </IonItem>
-                ) : (
-                  Object.entries(groupedFiles).map(([dateHeader, files]) => (
-                    <div key={`ipfs-group-${dateHeader}`}>
-                      {/* Date Header */}
-                      <IonItem color="light">
-                        <IonLabel>
-                          <h2
-                            style={{
-                              fontWeight: "bold",
-                              color: "var(--ion-color-primary)",
-                            }}
+              {!filesLoading &&
+                Object.entries(groupedFiles).map(([dateHeader, files]) => (
+                  <div key={`blockchain-group-${dateHeader}`}>
+                    {/* Date Header */}
+                    <IonItem color="light" className="date-header-item">
+                      <IonLabel>
+                        <h2
+                          className="date-header-text"
+                          style={{ color: "var(--ion-color-primary)" }}
+                        >
+                          {dateHeader}
+                        </h2>
+                      </IonLabel>
+                    </IonItem>
+
+                    {/* Files under this date */}
+                    {(files as any[]).map((file) => {
+                      const isLoading = loadingFile === file.file_name;
+                      return (
+                        <IonItemGroup key={`blockchain-${file.index}`}>
+                          <IonItem
+                            className="mobile-file-item"
+                            onClick={() =>
+                              !isLoading && loadFromBlockchain(file)
+                            }
                           >
-                            {dateHeader}
-                          </h2>
-                        </IonLabel>
-                      </IonItem>
-
-                      {/* Files under this date */}
-                      {(files as any[]).map((file) => (
-                        <IonItemGroup key={`ipfs-${file.cid}-${file.index}`}>
-                          <IonItem>
                             <IonIcon
-                              icon={cloud}
+                              icon={cloudOutline}
                               slot="start"
-                              className="file-icon cloud-icon"
+                              className="file-icon blockchain-icon"
                             />
-                            <IonLabel>
-                              <h3>{file.name}</h3>
-                              <p>IPFS file • {_formatDate(file.modified)}</p>
-                              <p>CID: {file.cid.substring(0, 10)}...</p>
+                            <IonLabel className="mobile-file-label">
+                              <h3>{file.file_name}</h3>
+                              <p>
+                                Blockchain file •{" "}
+                                {new Date(
+                                  Number(file.timestamp) * 1000
+                                ).toLocaleString()}
+                              </p>
+                              <p>IPFS: {file.ipfs_cid.substring(0, 10)}...</p>
                             </IonLabel>
-                            <IonBadge color="tertiary" slot="end">
-                              IPFS
+                            <IonBadge
+                              color="primary"
+                              slot="end"
+                              className="mobile-badge"
+                            >
+                              BLOCKCHAIN
                             </IonBadge>
 
-                            {loadingFile === file.name ? (
+                            {isLoading && (
                               <IonSpinner name="circular" slot="end" />
-                            ) : (
-                              <>
-                                <IonIcon
-                                  icon={create}
-                                  color="warning"
-                                  slot="end"
-                                  size="large"
-                                  onClick={() => loadFromIPFS(file)}
-                                />
+                            )}
+                          </IonItem>
+                        </IonItemGroup>
+                      );
+                    })}
+                  </div>
+                ))}
+            </IonList>
+          );
+        }
+      } else {
+        // IPFS files section
+        if (showEmailInput) {
+          content = (
+            <IonCard>
+              <IonCardHeader>
+                <IonCardTitle>Set Up Your IPFS Account</IonCardTitle>
+              </IonCardHeader>
+              <IonCardContent>
+                <p>Enter your email to create or access your IPFS space</p>
+                <IonInput
+                  type="email"
+                  placeholder="Your email address"
+                  value={userEmail}
+                  onIonChange={(e) => setUserEmail(e.detail.value!)}
+                />
+                <IonInput
+                  type="text"
+                  placeholder="Your Space DID KEY"
+                  value={userSpace}
+                  onIonChange={(e) => setUserSpace(e.detail.value!)}
+                />
+                <IonButton
+                  expand="block"
+                  onClick={handleEmailSubmit}
+                  disabled={loading}
+                >
+                  {loading ? <IonSpinner name="dots" /> : "Continue"}
+                </IonButton>
+              </IonCardContent>
+            </IonCard>
+          );
+        } else if (showSpaceSetup) {
+          content = (
+            <IonCard>
+              <IonCardHeader>
+                <IonCardTitle>Create Your IPFS Space</IonCardTitle>
+              </IonCardHeader>
+              <IonCardContent>
+                <p>
+                  You don't have any IPFS spaces yet. Create one to start
+                  storing your files.
+                </p>
+                <IonButton
+                  expand="block"
+                  onClick={createUserSpace}
+                  disabled={isSpaceCreating}
+                >
+                  {isSpaceCreating ? (
+                    <IonSpinner name="dots" />
+                  ) : (
+                    "Create Space"
+                  )}
+                </IonButton>
+              </IonCardContent>
+            </IonCard>
+          );
+        } else if (!ipfsClient || !userSpace) {
+          content = (
+            <IonCard>
+              <IonCardHeader>
+                <IonCardTitle>IPFS Setup Required</IonCardTitle>
+              </IonCardHeader>
+              <IonCardContent>
+                <p>Please set up your IPFS account to access your files.</p>
+                <IonButton
+                  expand="block"
+                  onClick={() => setShowEmailInput(true)}
+                >
+                  Set Up IPFS Account
+                </IonButton>
+              </IonCardContent>
+            </IonCard>
+          );
+        } else {
+          // Show IPFS files with date grouping
+          if (ipfsFiles.length === 0) {
+            content = (
+              <>
+                <IonCard>
+                  <IonCardContent>
+                    <p>
+                      <strong>Your IPFS Space:</strong>{" "}
+                      {userSpace
+                        ? userSpace.substring(0, 20) + "..."
+                        : "Not set"}
+                    </p>
+                    <IonButton
+                      expand="block"
+                      onClick={fetchIPFSFiles}
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <IonSpinner name="dots" />
+                      ) : (
+                        "Refresh IPFS Files"
+                      )}
+                    </IonButton>
+                  </IonCardContent>
+                </IonCard>
 
+                <IonList>
+                  {loading ? (
+                    <IonItem>
+                      <IonSpinner name="circular" slot="start" />
+                      <IonLabel>Loading files from IPFS...</IonLabel>
+                    </IonItem>
+                  ) : (
+                    <IonItem>
+                      <IonLabel>No IPFS files found</IonLabel>
+                    </IonItem>
+                  )}
+                </IonList>
+              </>
+            );
+          } else {
+            const filesArray = ipfsFiles.map((file, index) => ({
+              ...file,
+              date: file.modified,
+              type: "ipfs",
+              index,
+            }));
+
+            const groupedFiles = groupFilesByDate(filesArray);
+
+            content = (
+              <>
+                <IonCard>
+                  <IonCardContent>
+                    <p>
+                      <strong>Your IPFS Space:</strong>{" "}
+                      {userSpace
+                        ? userSpace.substring(0, 20) + "..."
+                        : "Not set"}
+                    </p>
+                    <IonButton
+                      expand="block"
+                      onClick={fetchIPFSFiles}
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <IonSpinner name="dots" />
+                      ) : (
+                        "Refresh IPFS Files"
+                      )}
+                    </IonButton>
+                  </IonCardContent>
+                </IonCard>
+
+                <IonList>
+                  {loading ? (
+                    <IonItem>
+                      <IonSpinner name="circular" slot="start" />
+                      <IonLabel>Loading files from IPFS...</IonLabel>
+                    </IonItem>
+                  ) : (
+                    Object.entries(groupedFiles).map(([dateHeader, files]) => (
+                      <div key={`ipfs-group-${dateHeader}`}>
+                        {/* Date Header */}
+                        <IonItem color="light" className="date-header-item">
+                          <IonLabel>
+                            <h2
+                              className="date-header-text"
+                              style={{ color: "var(--ion-color-primary)" }}
+                            >
+                              {dateHeader}
+                            </h2>
+                          </IonLabel>
+                        </IonItem>
+
+                        {/* Files under this date */}
+                        {(files as any[]).map((file) => (
+                          <IonItemGroup key={`ipfs-${file.cid}-${file.index}`}>
+                            <IonItem
+                              className="mobile-file-item"
+                              onClick={() =>
+                                loadingFile !== file.name && loadFromIPFS(file)
+                              }
+                            >
+                              <IonIcon
+                                icon={cloud}
+                                slot="start"
+                                className="file-icon cloud-icon"
+                              />
+                              <IonLabel className="mobile-file-label">
+                                <h3>{file.name}</h3>
+                                <p>IPFS file • {_formatDate(file.modified)}</p>
+                                <p>CID: {file.cid.substring(0, 10)}...</p>
+                              </IonLabel>
+                              <IonBadge
+                                color="tertiary"
+                                slot="end"
+                                className="mobile-badge"
+                              >
+                                IPFS
+                              </IonBadge>
+
+                              {loadingFile === file.name ? (
+                                <IonSpinner name="circular" slot="end" />
+                              ) : (
                                 <IonIcon
                                   icon={cloudDownload}
                                   color="primary"
                                   slot="end"
-                                  size="large"
-                                  onClick={() => {
+                                  size="small"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     setFileToMove(file);
                                     setShowMoveAlert(true);
                                   }}
                                 />
-                              </>
-                            )}
-                          </IonItem>
-                        </IonItemGroup>
-                      ))}
-                    </div>
-                  ))
-                )}
-              </IonList>
-            </>
-          );
+                              )}
+                            </IonItem>
+                          </IonItemGroup>
+                        ))}
+                      </div>
+                    ))
+                  )}
+                </IonList>
+              </>
+            );
+          }
         }
       }
-    }
-    setFileListContent(content);
-  };
-  useEffect(() => {
+      setFileListContent(content);
+    };
     renderFileList();
   }, [
+    props.file,
     listFiles,
     fileSource,
     ipfsFiles,

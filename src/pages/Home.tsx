@@ -188,14 +188,16 @@ const Home: React.FC = () => {
           </IonTitle>
 
           <IonButtons slot="end" className="ion-padding-end">
-            <NewFile data-testid="new-file-btn" />
+            <div style={{ marginRight: "12px" }}>
+              <NewFile data-testid="new-file-btn" />
+            </div>
             <IonIcon
               icon={saveSharp}
               size="large"
               onClick={(e) => {
                 setShowMenu(true);
               }}
-              style={{ cursor: "pointer" }}
+              style={{ cursor: "pointer", marginRight: "12px" }}
             />
 
             <WalletConnection />

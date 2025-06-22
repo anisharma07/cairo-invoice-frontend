@@ -75,7 +75,7 @@ const WalletConnection: React.FC = () => {
           icon={walletOutline}
           // fill="clear"
           onClick={() => setShowModal(true)}
-          color="light"
+          color={isDarkMode ? "dark" : "light"}
           size="large"
           // className="ion-padding-horizontal"
         />
