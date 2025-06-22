@@ -500,3 +500,33 @@ export function executeCommand(cmdline) {
   var editor = control.workbook.spreadsheet.editor;
   editor.EditorScheduleSheetCommands(cmdline, true, false);
 }
+
+// Simple keydown event listener
+export function addKeydownListener(callback) {
+  const handleKeydown = (event) => {
+    const control = SocialCalc.GetCurrentWorkBookControl();
+    const editor = control.workbook.spreadsheet.editor;
+
+    const eventData = {
+      key: event.key,
+      keyCode: event.keyCode,
+      ctrlKey: event.ctrlKey,
+      altKey: event.altKey,
+      shiftKey: event.shiftKey,
+      currentCell: editor.ecell ? editor.ecell.coord : null,
+      currentSheet: control.currentSheetButton
+        ? control.currentSheetButton.id
+        : null,
+      timestamp: new Date().toISOString(),
+    };
+
+    callback(eventData);
+  };
+
+  document.addEventListener("keydown", handleKeydown);
+
+  // Return cleanup function
+  return () => {
+    document.removeEventListener("keydown", handleKeydown);
+  };
+}
