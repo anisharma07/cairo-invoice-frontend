@@ -18,12 +18,12 @@ import { pencil, saveSharp } from "ionicons/icons";
 import "./Home.css";
 import NewFile from "../components/NewFile/NewFile";
 import WalletConnection from "../components/wallet/WalletConnection";
-import { useAccount } from "@starknet-react/core";
-import { uploadJSONToIPFS } from "../utils/ipfs";
-import { useSaveFile } from "../hooks/useContractWrite";
 import Menu from "../components/Menu/Menu";
+import { useAccount } from "@starknet-react/core";
 import { useTheme } from "../contexts/ThemeContext";
 import { useInvoice } from "../contexts/InvoiceContext";
+import { useSaveFile } from "../hooks/useContractWrite";
+import { uploadJSONToIPFS } from "../utils/ipfs";
 
 const Home: React.FC = () => {
   const { address } = useAccount();
@@ -149,6 +149,8 @@ const Home: React.FC = () => {
 
   const footers = DATA["home"][device]["footers"];
   const footersList = footers.map((footerArray) => {
+    const isActive = footerArray.index === billType;
+
     return (
       <IonButton
         key={footerArray.index}
@@ -159,6 +161,8 @@ const Home: React.FC = () => {
           minWidth: "max-content",
           marginRight: "8px",
           flexShrink: 0,
+          border: isActive ? "2px solid #3880ff" : "2px solid transparent",
+          borderRadius: "4px",
         }}
         onClick={() => {
           updateBillType(footerArray.index);

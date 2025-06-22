@@ -10,6 +10,155 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/* Dark mode fixes for Home page */
+.dark-theme ion-page {
+  --ion-background-color: #0d1117 !important;
+  background: #0d1117 !important;
+}
+
+.dark-theme ion-header {
+  background: #161b22 !important;
+  border-bottom: 1px solid #30363d !important;
+}
+
+.dark-theme ion-header ion-toolbar {
+  --background: #161b22 !important;
+  --color: #f0f6fc !important;
+  --border-color: #30363d !important;
+  background: #161b22 !important;
+  border-bottom: 1px solid #30363d !important;
+}
+
+/* Force header toolbar colors to dark - override Ionic defaults */
+.dark-theme ion-header ion-toolbar[color="primary"],
+.dark-theme ion-toolbar[color="primary"] {
+  background-color: #161b22 !important;
+  --background-color: #161b22 !important;
+  --ion-toolbar-color: #f0f6fc !important;
+  --ion-toolbar-background: #161b22 !important;
+  --ion-toolbar-background-color: #161b22 !important;
+}
+
+.dark-theme ion-header ion-toolbar[color="secondary"],
+.dark-theme ion-toolbar[color="secondary"] {
+  background-color: #21262d !important;
+  --background-color: #21262d !important;
+  --ion-toolbar-color: #f0f6fc !important;
+  --ion-toolbar-background: #21262d !important;
+  --ion-toolbar-background-color: #21262d !important;
+}
+
+/* Override any remaining blue backgrounds */
+.dark-theme ion-header,
+.dark-theme ion-header * {
+  background-color: #161b22 !important;
+}
+
+.dark-theme ion-toolbar[color="primary"] *,
+.dark-theme ion-toolbar[color="secondary"] * {
+  --background: inherit !important;
+}
+
+.dark-theme ion-toolbar[color="primary"] {
+  --background: #161b22 !important;
+  --color: #f0f6fc !important;
+  background: #161b22 !important;
+  border-bottom: 1px solid #30363d !important;
+  --ion-color-primary: #161b22 !important;
+  --ion-color-primary-shade: #161b22 !important;
+  --ion-color-primary-tint: #161b22 !important;
+}
+
+.dark-theme ion-toolbar[color="secondary"] {
+  --background: #21262d !important;
+  --color: #f0f6fc !important;
+  background: #21262d !important;
+  border-bottom: 1px solid #30363d !important;
+  border-top: 1px solid #30363d !important;
+  --ion-color-secondary: #21262d !important;
+  --ion-color-secondary-shade: #21262d !important;
+  --ion-color-secondary-tint: #21262d !important;
+}
+
+.dark-theme ion-title {
+  color: #f0f6fc !important;
+}
+
+.dark-theme .editing-title {
+  color: #f0f6fc !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.dark-theme .editing-title ion-icon {
+  color: #58a6ff !important;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+}
+
+/* Enhance pencil icon in title */
+.dark-theme .editing-title ion-icon[icon="pencil"] {
+  color: #ffd534 !important;
+  filter: drop-shadow(0 1px 3px rgba(255, 213, 52, 0.3));
+}
+
+.dark-theme ion-button[color="light"] {
+  --background: #30363d !important;
+  --color: #f0f6fc !important;
+  --border-color: #f0f6fc !important;
+  background: #30363d !important;
+  color: #f0f6fc !important;
+  border: 1px solid #484f58 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+.dark-theme ion-button[color="light"]:hover {
+  --background: #484f58 !important;
+  background: #484f58 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Header button and icon styles */
+.dark-theme ion-buttons ion-icon {
+  color: #f0f6fc !important;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+}
+
+.dark-theme ion-buttons ion-icon:hover {
+  color: #58a6ff !important;
+  background: rgba(88, 166, 255, 0.1) !important;
+  border-radius: 4px;
+}
+
+/* Active footer button styling for dark mode */
+.dark-theme ion-button[style*="border: 2px solid #3880ff"] {
+  --background: #1f2937 !important;
+  --color: #58a6ff !important;
+  background: #1f2937 !important;
+  color: #58a6ff !important;
+  border: 2px solid #58a6ff !important;
+  box-shadow: 0 0 10px rgba(88, 166, 255, 0.3) !important;
+}
+
+/* Additional dark mode header improvements */
+.dark-theme ion-content {
+  --background: #0d1117 !important;
+  background: #0d1117 !important;
+}
+
+/* Improve content separation in dark mode */
+.dark-theme #container {
+  background: #0d1117 !important;
+  border-top: 1px solid #30363d;
+}
+
+/* Dark mode button active state improvements */
+.dark-theme ion-button[style*="border: 2px solid #3880ff"]:hover {
+  --background: #1e2938 !important;
+  background: #1e2938 !important;
+  box-shadow: 0 0 15px rgba(88, 166, 255, 0.4) !important;
+  transform: translateY(-1px);
+}
+
 /* Enhanced Med Token Balance Styling */
 .med-token-balance {
   margin-right: 8px;
@@ -55,6 +204,20 @@
   margin-right: 4px;
 }
 
+/* Improve save icon styling in dark mode */
+.dark-theme ion-icon[icon="save-sharp"] {
+  color: #58a6ff !important;
+  transition: all 0.2s ease;
+}
+
+.dark-theme ion-icon[icon="save-sharp"]:hover {
+  color: #ffffff !important;
+  background: rgba(88, 166, 255, 0.2) !important;
+  border-radius: 6px;
+  padding: 6px;
+  transform: scale(1.05);
+}
+
 /* Enhanced Toolbar Icons */
 ion-toolbar ion-buttons ion-icon {
   cursor: pointer;
@@ -66,6 +229,13 @@ ion-toolbar ion-buttons ion-icon {
 ion-toolbar ion-buttons ion-icon:hover {
   background: rgba(255, 255, 255, 0.1);
   transform: scale(1.1);
+}
+
+/* Dark mode toolbar icon enhancements */
+.dark-theme ion-toolbar ion-buttons ion-icon:hover {
+  background: rgba(88, 166, 255, 0.15) !important;
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(88, 166, 255, 0.2);
 }
 
 /* Info Button Special Styling */
@@ -140,4 +310,63 @@ ion-segment-button:hover {
 ion-toast {
   --border-radius: 12px;
   --box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* Comprehensive dark mode background coverage */
+.dark-theme {
+  --ion-background-color: #0d1117 !important;
+  --ion-text-color: #f0f6fc !important;
+  --ion-item-background: #161b22 !important;
+  --ion-card-background: #161b22 !important;
+  --ion-toolbar-background: #161b22 !important;
+  --ion-tab-bar-background: #161b22 !important;
+  --ion-popover-background: #21262d !important;
+  --ion-modal-background: #21262d !important;
+}
+
+/* Ensure all content areas have dark background */
+.dark-theme ion-content,
+.dark-theme ion-page,
+.dark-theme ion-app {
+  --background: #0d1117 !important;
+  background-color: #0d1117 !important;
+  color: #f0f6fc !important;
+}
+
+/* Dark mode for any remaining UI elements */
+.dark-theme ion-item {
+  --background: #161b22 !important;
+  --color: #f0f6fc !important;
+  --border-color: #30363d !important;
+}
+
+.dark-theme ion-card {
+  --background: #161b22 !important;
+  --color: #f0f6fc !important;
+  border: 1px solid #30363d !important;
+}
+
+/* Ensure proper text contrast in dark mode */
+.dark-theme {
+  color: #f0f6fc !important;
+}
+
+/* Dark mode for modals and popovers */
+.dark-theme ion-modal,
+.dark-theme ion-popover {
+  --background: #21262d !important;
+  --color: #f0f6fc !important;
+}
+
+.dark-theme ion-alert {
+  --background: #21262d !important;
+  --color: #f0f6fc !important;
+  --button-color: #58a6ff !important;
+}
+
+/* Dark mode for toast notifications */
+.dark-theme ion-toast {
+  --background: #21262d !important;
+  --color: #f0f6fc !important;
+  --border: 1px solid #30363d !important;
 }

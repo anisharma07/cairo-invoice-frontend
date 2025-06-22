@@ -144,48 +144,58 @@
 
 /* Dark Theme Styles for Files Page */
 .dark-theme .files-page-container {
-  background: var(--stark-invoice-bg-primary);
-  color: var(--stark-invoice-text-primary);
+  background: #0d1117;
+  color: #f0f6fc;
 }
 
 .dark-theme .files-modal-header ion-toolbar {
-  --background: var(--stark-invoice-bg-secondary);
-  --color: var(--stark-invoice-text-primary);
-  --border-color: var(--stark-invoice-border);
+  --background: #161b22;
+  --color: #f0f6fc;
+  --border-color: #30363d;
 }
 
 .dark-theme .files-modal-title {
-  color: var(--stark-invoice-text-primary);
+  color: #f0f6fc !important;
 }
 
 .dark-theme .files-modal-content {
-  background: var(--stark-invoice-bg-primary);
+  background: #0d1117;
 }
 
 .dark-theme .files-scrollable-container {
-  background: var(--stark-invoice-bg-primary);
+  background: #0d1117;
 }
 
 .dark-theme ion-segment-button {
-  --color: var(--stark-invoice-text-secondary);
-  --color-checked: var(--stark-invoice-accent);
-  --background-checked: var(--stark-invoice-bg-tertiary);
-  --border-color: var(--stark-invoice-border);
+  --color: #f0f6fc;
+  --color-checked: #58a6ff;
+  --background-checked: #21262d;
+  --border-color: #30363d;
 }
 
 .dark-theme ion-list {
-  background: var(--stark-invoice-bg-primary);
+  background: #0d1117;
 }
 
 .dark-theme ion-item {
-  --background: var(--stark-invoice-bg-primary);
-  --color: var(--stark-invoice-text-primary);
-  --border-color: var(--stark-invoice-border);
+  --background: #161b22;
+  --color: #f0f6fc;
+  --border-color: #30363d;
 }
 
 .dark-theme ion-item[color="light"] {
-  --background: var(--stark-invoice-bg-tertiary);
-  --color: var(--stark-invoice-accent);
+  --background: #21262d;
+  --color: #f0f6fc;
+}
+
+.dark-theme ion-label {
+  color: #f0f6fc !important;
+}
+
+.dark-theme ion-label h2,
+.dark-theme ion-label h3,
+.dark-theme ion-label p {
+  color: #f0f6fc !important;
 }
 
 .dark-theme .file-icon {

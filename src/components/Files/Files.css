@@ -105,18 +105,31 @@
 
 /* Dark Theme Overrides */
 .dark-theme .files-modal-header {
-  background: linear-gradient(135deg, #161b22, #21262d);
+  background: #161b22 !important;
+  border-bottom: 1px solid #30363d !important;
 }
 
 .dark-theme .files-modal-header ion-toolbar {
-  --background: transparent !important;
+  --background: #161b22 !important;
   --color: #f0f6fc !important;
   --border-color: #30363d !important;
+  background: #161b22 !important;
 }
 
 .dark-theme .files-modal-title {
   color: #f0f6fc !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  text-shadow: none !important;
+}
+
+/* Dark mode page header fix */
+.dark-theme ion-header {
+  background: #161b22 !important;
+}
+
+.dark-theme ion-header ion-toolbar {
+  --background: #161b22 !important;
+  --color: #f0f6fc !important;
+  background: #161b22 !important;
 }
 
 /* Dark Mode Segment Styling */
@@ -169,13 +182,21 @@
 
 /* Dark Mode List Items */
 .dark-theme ion-list {
-  background: transparent !important;
+  background: #0d1117 !important;
 }
 
 .dark-theme ion-item {
-  --background: transparent !important;
+  --background: #21262d !important;
   --color: #f0f6fc !important;
-  --border-color: #30363d;
+  --border-color: #30363d !important;
+  background: #21262d !important;
+  color: #f0f6fc !important;
+  border-bottom: 1px solid #30363d !important;
+}
+
+.dark-theme ion-item:hover {
+  --background: #30363d !important;
+  background: #30363d !important;
 }
 
 .dark-theme ion-label {
@@ -186,6 +207,29 @@
 .dark-theme ion-label h3,
 .dark-theme ion-label p {
   color: #f0f6fc !important;
+}
+
+/* Dark mode badges */
+.dark-theme ion-badge {
+  --background: #238636 !important;
+  --color: #ffffff !important;
+  background: #238636 !important;
+  color: #ffffff !important;
+}
+
+.dark-theme ion-badge[color="secondary"] {
+  --background: #6c757d !important;
+  background: #6c757d !important;
+}
+
+.dark-theme ion-badge[color="primary"] {
+  --background: #58a6ff !important;
+  background: #58a6ff !important;
+}
+
+.dark-theme ion-badge[color="tertiary"] {
+  --background: #6f42c1 !important;
+  background: #6f42c1 !important;
 }
 
 /* Dark Mode Cards */

@@ -251,3 +251,49 @@ body.dark {
   --stark-invoice-warning: #d29922;
   --stark-invoice-danger: #f85149;
 }
+
+/* Global dark theme modal and overlay fixes */
+body.dark ion-modal {
+  --background: #0d1117;
+  --color: #f0f6fc;
+}
+
+body.dark ion-popover {
+  --background: #21262d;
+  --color: #f0f6fc;
+  --box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+body.dark ion-action-sheet {
+  --background: #21262d;
+  --color: #f0f6fc;
+}
+
+body.dark ion-alert {
+  --background: #21262d;
+  --color: #f0f6fc;
+}
+
+body.dark ion-loading {
+  --background: #21262d;
+  --color: #f0f6fc;
+  --spinner-color: #58a6ff;
+}
+
+body.dark ion-toast {
+  --background: #21262d;
+  --color: #f0f6fc;
+}
+
+/* Ensure all headers are dark */
+body.dark ion-header {
+  --background: #161b22;
+  --color: #f0f6fc;
+  --border-color: #30363d;
+}
+
+body.dark ion-toolbar {
+  --background: #161b22;
+  --color: #f0f6fc;
+  --border-color: #30363d;
+}

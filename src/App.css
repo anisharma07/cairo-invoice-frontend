@@ -113,12 +113,32 @@ ion-tab-button:active {
 }
 
 /* Dark mode support */
-@media (prefers-color-scheme: dark) {
+.dark-theme,
+body.dark {
   ion-tab-bar {
-    --background: var(--ion-color-dark);
-    --color: var(--ion-color-medium);
-    border-top-color: rgba(255, 255, 255, 0.1);
-    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.3);
+    --background: #161b22 !important;
+    --color: #f0f6fc !important;
+    border-top-color: #30363d !important;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.3) !important;
+    background: #161b22 !important;
+  }
+
+  ion-tab-button {
+    --color: #f0f6fc !important;
+    --color-selected: #58a6ff !important;
+  }
+
+  ion-tab-button.tab-selected {
+    --color: #58a6ff !important;
+    --background: rgba(88, 166, 255, 0.1) !important;
+  }
+
+  ion-tab-button ion-label {
+    color: #f0f6fc !important;
+  }
+
+  ion-tab-button.tab-selected ion-label {
+    color: #58a6ff !important;
   }
 }
 
@@ -268,20 +288,57 @@ ion-tab-button:active {
   --ion-border-color: #30363d;
 }
 
+.dark-theme * {
+  color: #f0f6fc !important;
+}
+
+.dark-theme ion-content {
+  --background: #0d1117 !important;
+  --color: #f0f6fc !important;
+}
+
+.dark-theme ion-header ion-toolbar {
+  --background: #161b22 !important;
+  --color: #f0f6fc !important;
+  --border-color: #30363d !important;
+}
+
+.dark-theme ion-title {
+  color: #f0f6fc !important;
+}
+
+.dark-theme ion-label {
+  color: #f0f6fc !important;
+}
+
+.dark-theme ion-item {
+  --background: #21262d !important;
+  --color: #f0f6fc !important;
+  --border-color: #30363d !important;
+}
+
 .dark-theme ion-tab-bar {
   --background: #161b22;
-  --color: #8b949e;
+  --color: #f0f6fc;
   border-top: 1px solid #30363d;
 }
 
 .dark-theme ion-tab-button {
-  --color: #8b949e;
+  --color: #f0f6fc;
   --color-selected: #58a6ff;
 }
 
 .dark-theme ion-tab-button.tab-selected {
   --color: #58a6ff;
   --background: rgba(88, 166, 255, 0.1);
+}
+
+.dark-theme ion-tab-button ion-label {
+  color: #f0f6fc !important;
+}
+
+.dark-theme ion-tab-button.tab-selected ion-label {
+  color: #58a6ff !important;
 }
 
 .dark-theme ion-router-outlet {
@@ -292,4 +349,162 @@ ion-tab-button:active {
 * {
   transition: background-color 0.3s ease, color 0.3s ease,
     border-color 0.3s ease;
+}
+
+/* Dark Mode Subscription Component Fixes */
+.dark-theme ion-modal {
+  --background: #0d1117 !important;
+  --color: #f0f6fc !important;
+  background: #0d1117 !important;
+}
+
+.dark-theme ion-modal ion-content {
+  --background: #0d1117 !important;
+  --color: #f0f6fc !important;
+  background: #0d1117 !important;
+}
+
+.dark-theme ion-card {
+  --background: #21262d !important;
+  --color: #f0f6fc !important;
+  background: #21262d !important;
+  border: 1px solid #30363d !important;
+}
+
+.dark-theme ion-card-header {
+  --background: #161b22 !important;
+  --color: #f0f6fc !important;
+  background: #161b22 !important;
+  border-bottom: 1px solid #30363d !important;
+}
+
+.dark-theme ion-card-title {
+  color: #f0f6fc !important;
+}
+
+.dark-theme ion-card-content {
+  --background: #21262d !important;
+  --color: #f0f6fc !important;
+  background: #21262d !important;
+}
+
+.dark-theme ion-grid {
+  background: transparent !important;
+}
+
+.dark-theme ion-row {
+  background: transparent !important;
+}
+
+.dark-theme ion-col {
+  background: transparent !important;
+}
+
+/* Dark mode text elements */
+.dark-theme ion-text {
+  color: #f0f6fc !important;
+}
+
+.dark-theme ion-text h2,
+.dark-theme ion-text h3,
+.dark-theme ion-text h4,
+.dark-theme ion-text p {
+  color: #f0f6fc !important;
+}
+
+.dark-theme ion-text[color="medium"] {
+  color: #8b949e !important;
+}
+
+.dark-theme ion-text[color="success"] {
+  color: #3fb950 !important;
+}
+
+.dark-theme ion-text[color="warning"] {
+  color: #d29922 !important;
+}
+
+.dark-theme ion-text[color="danger"] {
+  color: #f85149 !important;
+}
+
+/* Dark mode chips */
+.dark-theme ion-chip {
+  --background: #30363d !important;
+  --color: #f0f6fc !important;
+  background: #30363d !important;
+  color: #f0f6fc !important;
+}
+
+.dark-theme ion-chip[color="success"] {
+  --background: #238636 !important;
+  --color: #ffffff !important;
+  background: #238636 !important;
+  color: #ffffff !important;
+}
+
+.dark-theme ion-chip[color="warning"] {
+  --background: #d29922 !important;
+  --color: #000000 !important;
+  background: #d29922 !important;
+  color: #000000 !important;
+}
+
+/* Dark mode progress bar */
+.dark-theme ion-progress-bar {
+  --background: #30363d !important;
+  --progress-background: #58a6ff !important;
+}
+
+/* Dark mode buttons */
+.dark-theme ion-button {
+  --color: #f0f6fc !important;
+}
+
+.dark-theme ion-button[color="primary"] {
+  --background: #238636 !important;
+  --color: #ffffff !important;
+}
+
+.dark-theme ion-button[color="warning"] {
+  --background: #d29922 !important;
+  --color: #000000 !important;
+}
+
+.dark-theme ion-button[fill="outline"] {
+  --border-color: #30363d !important;
+  --color: #f0f6fc !important;
+}
+
+/* Dark mode loading */
+.dark-theme ion-loading {
+  --background: #21262d !important;
+  --color: #f0f6fc !important;
+  --spinner-color: #58a6ff !important;
+}
+
+/* Ensure all text in dark theme is visible */
+.dark-theme * {
+  color: #f0f6fc !important;
+}
+
+/* Override for specific elements that should keep their colors */
+.dark-theme ion-icon[color="success"] {
+  color: #3fb950 !important;
+}
+
+.dark-theme ion-icon[color="warning"] {
+  color: #d29922 !important;
+}
+
+.dark-theme ion-icon[color="danger"] {
+  color: #f85149 !important;
+}
+
+.dark-theme ion-icon[color="primary"] {
+  color: #58a6ff !important;
+}
+
+.dark-theme ion-icon[color="medium"] {
+  color: #8b949e !important;
 }

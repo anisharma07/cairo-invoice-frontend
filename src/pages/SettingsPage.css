@@ -12,6 +12,18 @@
   background: #0d1117 !important;
 }
 
+/* Ensure all text is visible in dark mode */
+.settings-page-dark * {
+  color: #f0f6fc !important;
+}
+
+.settings-page-dark ion-label,
+.settings-page-dark ion-title,
+.settings-page-dark ion-card-title,
+.settings-page-dark p {
+  color: #f0f6fc !important;
+}
+
 /* Settings Page Light Theme Integration */
 .settings-page-light {
   --ion-background-color: #fafbfc !important;
@@ -24,6 +36,18 @@
   --background: #fafbfc !important;
   --color: #24292f !important;
   background: #fafbfc !important;
+}
+
+/* Ensure all text is visible in light mode */
+.settings-page-light * {
+  color: #24292f !important;
+}
+
+.settings-page-light ion-label,
+.settings-page-light ion-title,
+.settings-page-light ion-card-title,
+.settings-page-light p {
+  color: #24292f !important;
 }
 
 /* Dark Mode Toolbar Override */
@@ -132,9 +156,14 @@
 }
 
 .settings-card-dark ion-label p {
-  color: #8b949e !important;
+  color: #f0f6fc !important;
   font-weight: 500 !important;
   font-size: 0.9em !important;
+}
+
+/* Fix connection status text */
+.settings-card-dark ion-label {
+  color: #f0f6fc !important;
 }
 
 /* Buttons - Simplified */
