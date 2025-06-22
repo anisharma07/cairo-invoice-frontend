@@ -6,7 +6,7 @@ import { EmailComposer } from "capacitor-email-composer";
 import { Printer } from "@ionic-native/printer";
 import { IonActionSheet, IonAlert } from "@ionic/react";
 import { saveOutline, save, mail, print, cloudUpload } from "ionicons/icons";
-import { APP_NAME } from "../../app-data.js";
+import { APP_NAME } from "../../app-data-new";
 import { useAccount } from "@starknet-react/core";
 import { uploadJSONToIPFS } from "../../utils/ipfs";
 import { useSaveFile } from "../../hooks/useContractWrite";

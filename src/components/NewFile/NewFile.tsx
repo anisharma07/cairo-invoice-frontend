@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import * as AppGeneral from "../socialcalc/index.js";
 import { File, Local } from "../Storage/LocalStorage";
-import { DATA } from "../../app-data.js";
-import { IonAlert, IonIcon } from "@ionic/react";
+import { DATA } from "../../app-data-new";
+import { IonAlert, IonIcon, IonToast } from "@ionic/react";
 import { add, addCircle, addOutline, documentText } from "ionicons/icons";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useInvoice } from "../../contexts/InvoiceContext";
@@ -11,8 +11,12 @@ import { addIcons } from "ionicons";
 const NewFile: React.FC = () => {
   const [showAlertNewFileCreated, setShowAlertNewFileCreated] = useState(false);
   const [showUnsavedChangesAlert, setShowUnsavedChangesAlert] = useState(false);
+  const [showSaveAsDialog, setShowSaveAsDialog] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
   const [originalFileContent, setOriginalFileContent] = useState<string>("");
   const { isDarkMode } = useTheme();
+  const [device] = useState("Android");
   const { selectedFile, billType, store, updateSelectedFile } = useInvoice();
 
   // Check if current file has unsaved changes
@@ -22,7 +26,7 @@ const NewFile: React.FC = () => {
 
       // If it's the default file, check if content differs from template
       if (selectedFile === "default") {
-        const defaultTemplate = DATA["home"][AppGeneral.getDeviceType()]["msc"];
+        const defaultTemplate = DATA["home"][device]["msc"];
         const templateContent = JSON.stringify(defaultTemplate);
 
         // Compare current content with default template
@@ -39,8 +43,7 @@ const NewFile: React.FC = () => {
 
         if (!savedData || !savedData.content) {
           // File doesn't exist in storage or has no content, check against template
-          const defaultTemplate =
-            DATA["home"][AppGeneral.getDeviceType()]["msc"];
+          const defaultTemplate = DATA["home"][device]["msc"];
           return currentContent !== JSON.stringify(defaultTemplate);
         }
 
@@ -93,31 +96,23 @@ const NewFile: React.FC = () => {
     }
 
     // Create new file with default template
-    const msc = DATA["home"][AppGeneral.getDeviceType()]["msc"];
-    AppGeneral.viewFile("default", JSON.stringify(msc));
+    const msc = DATA["home"][device]["msc"];
+
+    // Update the selected file first
     updateSelectedFile("default");
-    setShowAlertNewFileCreated(true);
+
+    // Use setTimeout to ensure state updates before loading new content
+    setTimeout(() => {
+      AppGeneral.viewFile("default", JSON.stringify(msc));
+      setShowAlertNewFileCreated(true);
+    }, 100);
   };
 
   const saveCurrentAndCreateNew = () => {
     // Save current file before creating new one
     if (selectedFile === "default") {
-      // For default files, create a timestamped file name
-      const timestamp =
-        new Date().toISOString().replace(/[:.]/g, "-").split("T")[0] +
-        "_" +
-        new Date().toLocaleTimeString().replace(/[:.]/g, "-");
-      const fileName = `invoice_${timestamp}`;
-
-      const content = encodeURIComponent(AppGeneral.getSpreadsheetContent());
-      const file = new File(
-        new Date().toString(),
-        new Date().toString(),
-        content,
-        fileName,
-        billType
-      );
-      store._saveFile(file);
+      // For default files, show save-as dialog to let user name the file
+      setShowSaveAsDialog(true);
     } else {
       // Save existing file
       const content = encodeURIComponent(AppGeneral.getSpreadsheetContent());
@@ -130,11 +125,38 @@ const NewFile: React.FC = () => {
         billType
       );
       store._saveFile(file);
-    }
 
-    // Now create new file
-    createNewFile();
+      // Now create new file
+      createNewFile();
+      setShowUnsavedChangesAlert(false);
+    }
+  };
+
+  const saveWithCustomName = (fileName: string) => {
+    const content = encodeURIComponent(AppGeneral.getSpreadsheetContent());
+    const file = new File(
+      new Date().toString(),
+      new Date().toString(),
+      content,
+      fileName,
+      billType
+    );
+    store._saveFile(file);
+
+    // Show success message
+    setToastMessage(`File "${fileName}" saved successfully!`);
+    setShowToast(true);
+
+    // Update the selected file to the saved file temporarily
+    updateSelectedFile(fileName);
+
+    // Now create new file after a short delay
+    setTimeout(() => {
+      createNewFile();
+    }, 100);
+
     setShowUnsavedChangesAlert(false);
+    setShowSaveAsDialog(false);
   };
 
   return (
@@ -175,6 +197,74 @@ const NewFile: React.FC = () => {
             text: "Save & New File",
             handler: () => {
               saveCurrentAndCreateNew();
+            },
+          },
+        ]}
+      />
+
+      {/* Toast for validation messages */}
+      <IonToast
+        isOpen={showToast}
+        onDidDismiss={() => setShowToast(false)}
+        message={toastMessage}
+        duration={3000}
+        color={toastMessage.includes("successfully") ? "success" : "warning"}
+        position="top"
+      />
+
+      {/* Save As Dialog for Default Files */}
+      <IonAlert
+        isOpen={showSaveAsDialog}
+        onDidDismiss={() => setShowSaveAsDialog(false)}
+        header="💾 Save Current File"
+        message="Please enter a name for your current invoice:"
+        inputs={[
+          {
+            name: "filename",
+            type: "text",
+            placeholder: `invoice_${new Date().toISOString().split("T")[0]}`,
+            attributes: {
+              maxlength: 50,
+            },
+          },
+        ]}
+        buttons={[
+          {
+            text: "Cancel",
+            role: "cancel",
+            handler: () => {
+              setShowSaveAsDialog(false);
+              setShowUnsavedChangesAlert(false);
+            },
+          },
+          {
+            text: "Save & New File",
+            handler: (data) => {
+              let fileName = data.filename?.trim();
+
+              // If no filename provided, use default with date
+              if (!fileName) {
+                fileName = `invoice_${new Date().toISOString().split("T")[0]}`;
+              }
+
+              // Basic validation
+              if (fileName.length > 50) {
+                setToastMessage("Filename is too long (max 50 characters)");
+                setShowToast(true);
+                return false;
+              }
+
+              // Check for invalid characters
+              if (!/^[a-zA-Z0-9-_. ]*$/.test(fileName)) {
+                setToastMessage(
+                  "Filename contains invalid characters. Use only letters, numbers, spaces, hyphens, underscores, and dots."
+                );
+                setShowToast(true);
+                return false;
+              }
+
+              saveWithCustomName(fileName);
+              return true;
             },
           },
         ]}
