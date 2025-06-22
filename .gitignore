@@ -28,3 +28,16 @@ yarn-error.log*
 
 # Optional eslint cache
 .eslintcache
+
+
+# Android signing
+keystore.properties
+android/keystore.properties
+android/app/keystore/
+*.keystore
+*.jks
+
+# Sensitive configuration files
+local.properties
+
+android/keystore.properties
