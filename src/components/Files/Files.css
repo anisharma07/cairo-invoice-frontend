@@ -61,6 +61,23 @@
   transition: all 0.2s ease;
 }
 
+/* Search Bar Styling */
+.files-modal-content ion-searchbar {
+  --background: #f8f9fa;
+  --border-radius: 12px;
+  --box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  --placeholder-color: var(--ion-color-medium);
+  --color: var(--ion-color-dark);
+  --icon-color: var(--ion-color-medium);
+  margin-bottom: 8px;
+  transition: all 0.2s ease;
+}
+
+.files-modal-content ion-searchbar:focus-within {
+  --background: white;
+  --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
 /* Modal scrollable files container - updated for mobile */
 .files-scrollable-container {
   max-height: calc(100vh - 220px);
@@ -179,6 +196,23 @@
 
 .file-icon.blockchain-icon {
   color: #28a745;
+}
+
+.file-icon.encrypted-icon {
+  color: #ffc107;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 /* Dark Theme Overrides */
@@ -385,7 +419,12 @@
 }
 
 .dark-theme .file-icon.blockchain-icon {
-  color: #f85149;
+  color: #4caf50;
+}
+
+.dark-theme .file-icon.encrypted-icon {
+  color: #ff9800;
+  animation: pulse 2s infinite;
 }
 
 /* Light Theme Files Component (Explicit) */
@@ -603,4 +642,58 @@ ion-icon[slot="end"] {
 /* Improved spacing for action icons */
 .mobile-file-item ion-icon[slot="end"]:last-child {
   margin-left: 4px;
+}
+
+/* Dark theme adjustments */
+.dark-theme .files-modal-content ion-segment,
+.dark-theme .files-modal-content .smaller-segment-text {
+  --background: #181c20 !important;
+  background: #181c20 !important;
+  border: 1px solid #30363d;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Dark theme search bar styling */
+.dark-theme .files-modal-content ion-searchbar {
+  --background: #21262d !important;
+  --color: #f0f6fc !important;
+  --placeholder-color: #7d8590 !important;
+  --icon-color: #7d8590 !important;
+  --box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+}
+
+.dark-theme .files-modal-content ion-searchbar:focus-within {
+  --background: #30363d !important;
+  --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+.dark-theme .files-modal-content {
+  background: #0d1117;
+}
+
+.light-theme .files-modal-content ion-segment-button ion-label {
+  color: #24292f !important;
+}
+
+.light-theme .files-modal-content ion-segment-button[aria-selected="true"] {
+  --background-checked: #0969da !important;
+  --color-checked: white !important;
+}
+
+/* Light theme search bar styling */
+.light-theme .files-modal-content ion-searchbar {
+  --background: #f6f8fa !important;
+  --color: #24292f !important;
+  --placeholder-color: #656d76 !important;
+  --icon-color: #656d76 !important;
+  --box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+.light-theme .files-modal-content ion-searchbar:focus-within {
+  --background: white !important;
+  --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+.light-theme .files-modal-content {
+  background: #ffffff;
 }

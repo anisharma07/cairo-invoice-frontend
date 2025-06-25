@@ -14,6 +14,7 @@ import {
   download,
   documentOutline,
   documents,
+  key,
 } from "ionicons/icons";
 import { APP_NAME } from "../../app-data";
 import { useAccount } from "@starknet-react/core";
@@ -48,6 +49,8 @@ const Menu: React.FC<{
   const [showAlert6, setShowAlert6] = useState(false); // For PDF filename
   const [showAlert7, setShowAlert7] = useState(false); // For CSV filename
   const [showAlert8, setShowAlert8] = useState(false); // For export all PDF filename
+  const [showAlert9, setShowAlert9] = useState(false); // For password protection
+  const [showAlert10, setShowAlert10] = useState(false); // For password input when loading
   const [showToast1, setShowToast1] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
@@ -55,6 +58,9 @@ const Menu: React.FC<{
   const [isExportingAllPDF, setIsExportingAllPDF] = useState(false);
   const [pdfProgress, setPdfProgress] = useState("");
   const [exportAllProgress, setExportAllProgress] = useState("");
+  const [passwordProtect, setPasswordProtect] = useState(false);
+  const [filePassword, setFilePassword] = useState("");
+  const [currentFileForPassword, setCurrentFileForPassword] = useState("");
   /* Utility functions */
   const _validateName = async (filename) => {
     filename = filename.trim();
@@ -532,10 +538,40 @@ const Menu: React.FC<{
           new Date().toString(),
           content,
           filename,
-          billType
+          billType,
+          passwordProtect,
+          passwordProtect ? filePassword : undefined
         );
         // const data = { created: file.created, modified: file.modified, content: file.content, password: file.password };
         // console.log(JSON.stringify(data));
+        store._saveFile(file);
+        updateSelectedFile(filename);
+
+        // Reset password protection state
+        setPasswordProtect(false);
+        setFilePassword("");
+
+        setShowAlert4(true);
+      } else {
+        setShowToast1(true);
+      }
+    }
+  };
+
+  const doSaveAsWithPassword = async (filename, password) => {
+    if (filename && password) {
+      if (await _validateName(filename)) {
+        const content = encodeURIComponent(AppGeneral.getSpreadsheetContent());
+        const file = new File(
+          new Date().toString(),
+          new Date().toString(),
+          content,
+          filename,
+          billType,
+          true,
+          password
+        );
+
         store._saveFile(file);
         updateSelectedFile(filename);
         setShowAlert4(true);
@@ -573,6 +609,14 @@ const Menu: React.FC<{
         handler: () => {
           setShowAlert3(true);
           console.log("Save As clicked");
+        },
+      },
+      {
+        text: "Save As (Password Protected)",
+        icon: key,
+        handler: () => {
+          setShowAlert9(true);
+          console.log("Save As with Password clicked");
         },
       },
     ];
@@ -800,6 +844,78 @@ const Menu: React.FC<{
                 `${selectedFile}_all_sheets` ||
                 "all_invoices";
               doExportAllSheetsAsPDF(filename);
+            },
+          },
+        ]}
+      />
+      <IonAlert
+        animated
+        isOpen={showAlert9}
+        onDidDismiss={() => setShowAlert9(false)}
+        header="Password Protection"
+        message="Enter password to protect the file"
+        inputs={[
+          {
+            name: "password",
+            type: "password",
+            placeholder: "Enter password",
+          },
+          {
+            name: "filename",
+            type: "text",
+            placeholder: "Enter filename",
+            value: selectedFile === "default" ? "" : selectedFile,
+          },
+        ]}
+        buttons={[
+          {
+            text: "Cancel",
+            role: "cancel",
+          },
+          {
+            text: "Save",
+            handler: (alertData) => {
+              if (alertData.password && alertData.filename) {
+                doSaveAsWithPassword(alertData.filename, alertData.password);
+              } else {
+                setToastMessage("Please enter both filename and password");
+                setShowToast1(true);
+                return false; // Prevent dialog from closing
+              }
+            },
+          },
+        ]}
+      />
+      <IonAlert
+        animated
+        isOpen={showAlert10}
+        onDidDismiss={() => setShowAlert10(false)}
+        header="Password Input"
+        message="Enter the password to access the file"
+        inputs={[
+          {
+            name: "password",
+            type: "password",
+            placeholder: "Enter password",
+          },
+        ]}
+        buttons={[
+          {
+            text: "Cancel",
+            role: "cancel",
+          },
+          {
+            text: "Access",
+            handler: (alertData) => {
+              if (alertData.password === filePassword) {
+                setPasswordProtect(false);
+                setCurrentFileForPassword("");
+                setToastMessage("File accessed successfully");
+                setShowToast1(true);
+              } else {
+                setToastMessage("Incorrect password");
+                setShowToast1(true);
+              }
             },
           },
         ]}

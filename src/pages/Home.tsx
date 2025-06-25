@@ -10,7 +10,7 @@ import {
   IonToast,
   IonAlert,
 } from "@ionic/react";
-import { APP_NAME, DATA } from "../app-data-new";
+import { APP_NAME, DATA } from "../app-data";
 import * as AppGeneral from "../components/socialcalc/index.js";
 import { useEffect, useState, useRef } from "react";
 import { Local, File } from "../components/Storage/LocalStorage";
@@ -39,7 +39,7 @@ const Home: React.FC = () => {
     useInvoice();
 
   const [showMenu, setShowMenu] = useState(false);
-  const [device] = useState("Android");
+  const [device] = useState(AppGeneral.getDeviceType());
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [toastColor, setToastColor] = useState<
@@ -226,7 +226,10 @@ const Home: React.FC = () => {
   });
 
   return (
-    <IonPage className={isDarkMode ? "dark-theme" : ""}>
+    <IonPage
+      className={isDarkMode ? "dark-theme" : ""}
+      // style={{ overflow: "hidden", maxHeight: "80vh" }}
+    >
       <IonHeader>
         <IonToolbar color="primary">
           <IonTitle slot="start" className="editing-title">
@@ -280,8 +283,6 @@ const Home: React.FC = () => {
             <WalletConnection />
           </IonButtons>
         </IonToolbar>
-      </IonHeader>
-      <IonContent fullscreen>
         <IonToolbar color="secondary">
           <div
             style={{
@@ -296,7 +297,8 @@ const Home: React.FC = () => {
             {footersList}
           </div>
         </IonToolbar>
-
+      </IonHeader>
+      <IonContent fullscreen>
         <div id="container">
           <div id="workbookControl"></div>
           <div id="tableeditor"></div>

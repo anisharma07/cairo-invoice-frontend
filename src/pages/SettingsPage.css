@@ -236,21 +236,33 @@ ion-icon[color="tertiary"] {
 .token-balance-container {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-top: 8px;
-  padding: 12px;
-  background: #238636;
-  border-radius: 12px;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: linear-gradient(90deg, #238636 80%, #1a7f37 100%);
+  border-radius: 8px;
+  min-height: 36px;
+  box-shadow: 0 1px 4px rgba(31, 35, 40, 0.08);
 }
 
 .token-balance-container .coin-emoji {
-  font-size: 24px;
+  font-size: 20px;
+  margin-right: 2px;
 }
 
 .token-balance-container .balance-text {
-  font-size: 1.3em !important;
-  font-weight: 800 !important;
-  color: #ffffff !important;
+  font-size: 1.1em !important;
+  font-weight: 700 !important;
+  color: #fff !important;
+  letter-spacing: 0.5px;
+}
+
+.settings-card-light .token-balance-container {
+  background: linear-gradient(90deg, #0969da 80%, #218bff 100%);
+}
+
+.settings-card-light .balance-text {
+  color: #fff !important;
 }
 
 /* Address Display */
@@ -515,21 +527,25 @@ ion-icon[color="tertiary"] {
 .settings-card-light .token-balance-container {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-top: 8px;
-  padding: 12px;
-  background: #0969da;
-  border-radius: 12px;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: linear-gradient(90deg, #0969da 80%, #218bff 100%);
+  border-radius: 8px;
+  min-height: 36px;
+  box-shadow: 0 1px 4px rgba(31, 35, 40, 0.08);
 }
 
 .settings-card-light .token-balance-container .coin-emoji {
-  font-size: 24px;
+  font-size: 20px;
+  margin-right: 2px;
 }
 
 .settings-card-light .token-balance-container .balance-text {
-  font-size: 1.3em !important;
-  font-weight: 800 !important;
-  color: #ffffff !important;
+  font-size: 1.1em !important;
+  font-weight: 700 !important;
+  color: #fff !important;
+  letter-spacing: 0.5px;
 }
 
 /* Light Mode Address Display */
