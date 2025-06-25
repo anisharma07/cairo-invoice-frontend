@@ -13,6 +13,7 @@ import {
   cloudUpload,
   download,
   documentOutline,
+  documents,
 } from "ionicons/icons";
 import { APP_NAME } from "../../app-data";
 import { useAccount } from "@starknet-react/core";
@@ -22,6 +23,7 @@ import { useIsUserSubscribed } from "../../hooks/useContractRead";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useInvoice } from "../../contexts/InvoiceContext";
 import { exportHTMLAsPDF } from "../../services/exportAsPdf.js";
+import { exportAllSheetsAsPDF } from "../../services/exportAllSheetsAsPdf";
 import { exportCSV, parseSocialCalcCSV } from "../../services/exportAsCsv";
 import { Share } from "@capacitor/share";
 import { Filesystem, Directory, Encoding } from "@capacitor/filesystem";
@@ -45,11 +47,14 @@ const Menu: React.FC<{
   const [showAlert5, setShowAlert5] = useState(false); // For blockchain save
   const [showAlert6, setShowAlert6] = useState(false); // For PDF filename
   const [showAlert7, setShowAlert7] = useState(false); // For CSV filename
+  const [showAlert8, setShowAlert8] = useState(false); // For export all PDF filename
   const [showToast1, setShowToast1] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isGeneratingCSV, setIsGeneratingCSV] = useState(false);
+  const [isExportingAllPDF, setIsExportingAllPDF] = useState(false);
   const [pdfProgress, setPdfProgress] = useState("");
+  const [exportAllProgress, setExportAllProgress] = useState("");
   /* Utility functions */
   const _validateName = async (filename) => {
     filename = filename.trim();
@@ -310,12 +315,142 @@ const Menu: React.FC<{
     }
   };
 
+  const doExportAllSheetsAsPDF = async (filename?: string) => {
+    try {
+      setIsExportingAllPDF(true);
+      setExportAllProgress("Collecting all sheets data...");
+
+      // Get all sheets data using the new function from index.js
+      const sheetsData = AppGeneral.getAllSheetsData();
+
+      if (!sheetsData || sheetsData.length === 0) {
+        setToastMessage("No sheets available to export");
+        setShowToast1(true);
+        setIsExportingAllPDF(false);
+        return;
+      }
+
+      const pdfFilename =
+        filename || `${selectedFile}_all_sheets` || "all_invoices";
+
+      setExportAllProgress(`Exporting ${sheetsData.length} sheets...`);
+
+      // Check if we're on a mobile device
+      if (isPlatform("hybrid") || isPlatform("mobile")) {
+        // Generate PDF as blob for sharing on mobile
+        const pdfBlob = await exportAllSheetsAsPDF(sheetsData, {
+          filename: pdfFilename,
+          format: "a4",
+          orientation: "portrait",
+          margin: 10,
+          quality: 2,
+          returnBlob: true,
+          onProgress: (message: string) => {
+            setExportAllProgress(message);
+          },
+        });
+
+        if (pdfBlob) {
+          try {
+            // Convert blob to base64
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+              const base64Data = reader.result as string;
+              const base64 = base64Data.split(",")[1]; // Remove data:application/pdf;base64, prefix
+
+              try {
+                // Save to temporary file
+                const tempFile = await Filesystem.writeFile({
+                  path: `${pdfFilename}.pdf`,
+                  data: base64,
+                  directory: Directory.Cache,
+                });
+
+                // Share the file
+                await Share.share({
+                  title: `${pdfFilename}.pdf`,
+                  text: `Combined PDF with ${sheetsData.length} invoices generated successfully`,
+                  url: tempFile.uri,
+                  dialogTitle: "Share Combined PDF",
+                });
+
+                setToastMessage(
+                  `Combined PDF with ${sheetsData.length} sheets generated and ready to share!`
+                );
+                setShowToast1(true);
+              } catch (shareError) {
+                console.log("Error sharing combined PDF:", shareError);
+                // Fallback: still generate PDF normally
+                await exportAllSheetsAsPDF(sheetsData, {
+                  filename: pdfFilename,
+                  format: "a4",
+                  orientation: "portrait",
+                  margin: 10,
+                  quality: 2,
+                  onProgress: (message: string) => {
+                    setExportAllProgress(message);
+                  },
+                });
+                setToastMessage(`Combined PDF saved as ${pdfFilename}.pdf`);
+                setShowToast1(true);
+              }
+            };
+            reader.readAsDataURL(pdfBlob as Blob);
+          } catch (error) {
+            console.error("Error processing combined PDF for sharing:", error);
+            // Fallback to normal PDF generation
+            await exportAllSheetsAsPDF(sheetsData, {
+              filename: pdfFilename,
+              format: "a4",
+              orientation: "portrait",
+              margin: 10,
+              quality: 2,
+              onProgress: (message: string) => {
+                setExportAllProgress(message);
+              },
+            });
+            setToastMessage(`Combined PDF saved as ${pdfFilename}.pdf`);
+            setShowToast1(true);
+          }
+        }
+      } else {
+        // Desktop behavior - use original export function
+        await exportAllSheetsAsPDF(sheetsData, {
+          filename: pdfFilename,
+          format: "a4",
+          orientation: "portrait",
+          margin: 10,
+          quality: 2,
+          onProgress: (message: string) => {
+            setExportAllProgress(message);
+          },
+        });
+
+        setToastMessage(
+          `Combined PDF with ${sheetsData.length} sheets saved as ${pdfFilename}.pdf`
+        );
+        setShowToast1(true);
+      }
+    } catch (error) {
+      console.error("Error generating combined PDF:", error);
+      setToastMessage("Failed to generate combined PDF. Please try again.");
+      setShowToast1(true);
+    } finally {
+      setIsExportingAllPDF(false);
+      setExportAllProgress("");
+    }
+  };
+
   const showPDFNameDialog = () => {
     setShowAlert6(true);
   };
 
   const showCSVNameDialog = () => {
     setShowAlert7(true);
+  };
+
+  const showExportAllPDFNameDialog = () => {
+    setShowAlert8(true);
   };
 
   const doSaveToBlockchain = async () => {
@@ -479,6 +614,14 @@ const Menu: React.FC<{
             },
           },
           {
+            text: "Export All Sheets as PDF",
+            icon: documents,
+            handler: () => {
+              showExportAllPDFNameDialog();
+              console.log("Export All Sheets as PDF clicked");
+            },
+          },
+          {
             text: "Email",
             icon: mail,
             handler: () => {
@@ -625,6 +768,36 @@ const Menu: React.FC<{
           },
         ]}
       />
+      <IonAlert
+        animated
+        isOpen={showAlert8}
+        onDidDismiss={() => setShowAlert8(false)}
+        header="Download All Sheets as PDF"
+        inputs={[
+          {
+            name: "pdfFilename",
+            type: "text",
+            placeholder: "Enter PDF filename",
+            value: selectedFile ? `${selectedFile}_all_sheets` : "all_invoices",
+          },
+        ]}
+        buttons={[
+          {
+            text: "Cancel",
+            role: "cancel",
+          },
+          {
+            text: "Download",
+            handler: (alertData) => {
+              const filename =
+                alertData.pdfFilename?.trim() ||
+                `${selectedFile}_all_sheets` ||
+                "all_invoices";
+              doExportAllSheetsAsPDF(filename);
+            },
+          },
+        ]}
+      />
       <IonToast
         animated
         isOpen={showToast1}
@@ -656,9 +829,9 @@ const Menu: React.FC<{
         onDidDismiss={() => setIsGeneratingCSV(false)}
       />
       <IonLoading
-        isOpen={isGeneratingCSV}
-        message={"Generating CSV..."}
-        onDidDismiss={() => setIsGeneratingCSV(false)}
+        isOpen={isExportingAllPDF}
+        message={exportAllProgress || "Exporting all sheets as PDF..."}
+        onDidDismiss={() => setIsExportingAllPDF(false)}
       />
     </React.Fragment>
   );

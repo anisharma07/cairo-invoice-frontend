@@ -547,3 +547,53 @@ export function setupCellChangeListener(callback) {
     SocialCalc.EditorSaveEdit = originalSaveEdit;
   };
 }
+
+export function getAllSheetsData() {
+  var control = SocialCalc.GetCurrentWorkBookControl();
+  if (!control || !control.workbook || !control.sheetButtonArr) {
+    return [];
+  }
+
+  var sheetsData = [];
+  var currentSheetId = control.currentSheetButton
+    ? control.currentSheetButton.id
+    : null;
+
+  // Get all sheet names
+  for (var sheetId in control.sheetButtonArr) {
+    // Temporarily switch to each sheet to get its HTML content
+    SocialCalc.WorkBookControlActivateSheet(sheetId);
+
+    var htmlContent = control.workbook.spreadsheet.CreateSheetHTML();
+
+    sheetsData.push({
+      id: sheetId,
+      name: sheetId.replace("sheet", "Sheet "), // Convert 'sheet1' to 'Sheet 1'
+      htmlContent: htmlContent,
+    });
+  }
+
+  // Switch back to the original sheet if it existed
+  if (currentSheetId) {
+    SocialCalc.WorkBookControlActivateSheet(currentSheetId);
+  }
+
+  return sheetsData;
+}
+
+export function getWorkbookInfo() {
+  var control = SocialCalc.GetCurrentWorkBookControl();
+  if (!control || !control.sheetButtonArr) {
+    return { numsheets: 0, sheets: [] };
+  }
+
+  var sheets = [];
+  for (var sheetId in control.sheetButtonArr) {
+    sheets.push(sheetId);
+  }
+
+  return {
+    numsheets: sheets.length,
+    sheets: sheets,
+  };
+}
