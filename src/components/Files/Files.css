@@ -145,6 +145,15 @@
   margin-left: auto;
 }
 
+/* Smaller font size for specific segment buttons */
+.smaller-segment-text ion-segment-button {
+  font-size: 0.75rem !important;
+}
+
+.smaller-segment-text ion-segment-button ion-label {
+  font-size: 0.75rem !important;
+}
+
 /* Date header styling - more compact */
 .date-header-item {
   --padding-start: 8px;
@@ -225,6 +234,20 @@
   ion-segment-button.segment-button-checked
   ion-label {
   color: #ffffff !important;
+}
+
+/* Dark theme support for smaller segment text */
+.dark-theme .smaller-segment-text ion-segment-button ion-label {
+  color: #f0f6fc !important;
+  font-size: 0.75rem !important;
+}
+
+.dark-theme
+  .smaller-segment-text
+  ion-segment-button.segment-button-checked
+  ion-label {
+  color: #ffffff !important;
+  font-size: 0.75rem !important;
 }
 
 /* Dark Mode Content Background */

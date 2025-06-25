@@ -564,6 +564,78 @@ const Menu: React.FC<{
     }
   };
 
+  // Create buttons array conditionally based on platform
+  const getMenuButtons = () => {
+    const baseButtons = [
+      {
+        text: "Save As",
+        icon: save,
+        handler: () => {
+          setShowAlert3(true);
+          console.log("Save As clicked");
+        },
+      },
+    ];
+
+    // Only add print button for non-mobile devices
+    if (!isPlatform("mobile") && !isPlatform("hybrid")) {
+      baseButtons.push({
+        text: "Print",
+        icon: print,
+        handler: () => {
+          doPrint();
+          console.log("Print clicked");
+        },
+      });
+    }
+
+    // Add remaining buttons
+    baseButtons.push(
+      {
+        text: "Export as PDF",
+        icon: download,
+        handler: () => {
+          showPDFNameDialog();
+          console.log("Download as PDF clicked");
+        },
+      },
+      {
+        text: "Export as CSV",
+        icon: documentOutline,
+        handler: () => {
+          showCSVNameDialog();
+          console.log("Export as CSV clicked");
+        },
+      },
+      {
+        text: "Export Workbook as PDF",
+        icon: documents,
+        handler: () => {
+          showExportAllPDFNameDialog();
+          console.log("Export All Sheets as PDF clicked");
+        },
+      },
+      // {
+      //   text: "Email",
+      //   icon: mail,
+      //   handler: () => {
+      //     sendEmail();
+      //     console.log("Email clicked");
+      //   },
+      // },
+      {
+        text: "Upload to Blockchain",
+        icon: cloudUpload,
+        handler: () => {
+          doSaveToBlockchain();
+          console.log("Save to Blockchain clicked");
+        },
+      }
+    );
+
+    return baseButtons;
+  };
+
   return (
     <React.Fragment>
       <IonActionSheet
@@ -571,73 +643,7 @@ const Menu: React.FC<{
         keyboardClose
         isOpen={props.showM}
         onDidDismiss={() => props.setM()}
-        buttons={[
-          // {
-          //   text: "Save Locally",
-          //   icon: saveOutline,
-          //   handler: () => {
-          //     doSave();
-          //     console.log("Save clicked");
-          //   },
-          // },
-
-          {
-            text: "Save As",
-            icon: save,
-            handler: () => {
-              setShowAlert3(true);
-              console.log("Save As clicked");
-            },
-          },
-          {
-            text: "Print",
-            icon: print,
-            handler: () => {
-              doPrint();
-              console.log("Print clicked");
-            },
-          },
-          {
-            text: "Export as PDF",
-            icon: download,
-            handler: () => {
-              showPDFNameDialog();
-              console.log("Download as PDF clicked");
-            },
-          },
-          {
-            text: "Export as CSV",
-            icon: documentOutline,
-            handler: () => {
-              showCSVNameDialog();
-              console.log("Export as CSV clicked");
-            },
-          },
-          {
-            text: "Export All Sheets as PDF",
-            icon: documents,
-            handler: () => {
-              showExportAllPDFNameDialog();
-              console.log("Export All Sheets as PDF clicked");
-            },
-          },
-          {
-            text: "Email",
-            icon: mail,
-            handler: () => {
-              sendEmail();
-              console.log("Email clicked");
-            },
-          },
-          {
-            text: "Upload to Blockchain",
-            icon: cloudUpload,
-            handler: () => {
-              doSaveToBlockchain();
-              console.log("Save to Blockchain clicked");
-            },
-          },
-        ]}
+        buttons={getMenuButtons()}
       />
       <IonAlert
         animated
@@ -688,7 +694,7 @@ const Menu: React.FC<{
         animated
         isOpen={showAlert6}
         onDidDismiss={() => setShowAlert6(false)}
-        header="Download as PDF"
+        header="Export as PDF"
         inputs={[
           {
             name: "pdfFilename",
@@ -772,7 +778,7 @@ const Menu: React.FC<{
         animated
         isOpen={showAlert8}
         onDidDismiss={() => setShowAlert8(false)}
-        header="Download All Sheets as PDF"
+        header="Download Workbook as PDF"
         inputs={[
           {
             name: "pdfFilename",

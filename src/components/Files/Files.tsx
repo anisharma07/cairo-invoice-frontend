@@ -938,6 +938,7 @@ const Files: React.FC<{
       <IonContent>
         <div className="files-modal-content">
           <IonSegment
+            className="smaller-segment-text"
             value={fileSource}
             onIonChange={(e) =>
               setFileSource(e.detail.value as "local" | "blockchain" | "ipfs")

@@ -274,31 +274,97 @@ ion-icon[color="tertiary"] {
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .menu-page-container {
-    padding: 12px;
+  .menu-page-container,
+  .menu-page-container.light-mode {
+    padding: 8px;
+    min-height: 100vh;
   }
 
-  .settings-card-title-dark {
-    font-size: 1.2em !important;
+  .settings-card-title-dark,
+  .settings-card-title-light {
+    font-size: 1em !important;
+    padding: 0;
   }
 
-  .settings-card-header-dark {
-    padding: 16px;
+  .settings-card-header-dark,
+  .settings-card-header-light {
+    padding: 10px;
   }
-}
 
-/* Enhanced Scroll */
-.settings-content-dark::-webkit-scrollbar {
-  width: 8px;
-}
+  .settings-card-dark ion-label h3,
+  .settings-card-light ion-label h3 {
+    font-size: 0.95em !important;
+    margin-bottom: 2px !important;
+  }
 
-.settings-content-dark::-webkit-scrollbar-track {
-  background: #0d1117;
-}
+  .settings-card-dark ion-label p,
+  .settings-card-light ion-label p {
+    font-size: 0.8em !important;
+  }
 
-.settings-content-dark::-webkit-scrollbar-thumb {
-  background: #30363d;
-  border-radius: 4px;
+  .settings-card-dark ion-item,
+  .settings-card-light ion-item {
+    margin: 4px 0;
+    padding: 2px;
+    font-size: 0.95em;
+  }
+
+  .settings-card-dark ion-button,
+  .settings-card-light ion-button {
+    font-size: 0.95em !important;
+    min-height: 36px;
+    --border-radius: 10px;
+  }
+
+  .token-balance-container {
+    gap: 6px;
+    margin-top: 4px;
+    padding: 8px;
+    border-radius: 8px;
+  }
+  .token-balance-container .coin-emoji {
+    font-size: 18px;
+  }
+  .token-balance-container .balance-text {
+    font-size: 1em !important;
+  }
+
+  .address-display {
+    font-size: 0.75em !important;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-top: 2px;
+  }
+
+  .settings-card-dark,
+  .settings-card-light {
+    border-radius: 10px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+  }
+
+  .settings-card-dark ion-icon,
+  .settings-card-light ion-icon {
+    font-size: 1em;
+    margin-right: 4px;
+  }
+
+  .settings-card-dark ion-toggle,
+  .settings-card-light ion-toggle {
+    min-width: 36px;
+    min-height: 20px;
+  }
+
+  .settings-card-dark ion-select,
+  .settings-card-light ion-select {
+    font-size: 0.95em;
+    min-height: 32px;
+  }
+
+  .settings-content-dark,
+  .settings-content-light {
+    font-size: 0.95em;
+  }
 }
 
 /* Light Mode Settings Page - Elegant & Modern */
@@ -497,16 +563,93 @@ ion-icon[color="tertiary"] {
 @media (max-width: 768px) {
   .menu-page-container,
   .menu-page-container.light-mode {
-    padding: 12px;
+    padding: 8px;
+    min-height: 100vh;
   }
 
   .settings-card-title-dark,
   .settings-card-title-light {
-    font-size: 1.2em !important;
+    font-size: 1em !important;
+    padding: 0;
   }
 
   .settings-card-header-dark,
   .settings-card-header-light {
-    padding: 16px;
+    padding: 10px;
+  }
+
+  .settings-card-dark ion-label h3,
+  .settings-card-light ion-label h3 {
+    font-size: 0.95em !important;
+    margin-bottom: 2px !important;
+  }
+
+  .settings-card-dark ion-label p,
+  .settings-card-light ion-label p {
+    font-size: 0.8em !important;
+  }
+
+  .settings-card-dark ion-item,
+  .settings-card-light ion-item {
+    margin: 4px 0;
+    padding: 2px;
+    font-size: 0.95em;
+  }
+
+  .settings-card-dark ion-button,
+  .settings-card-light ion-button {
+    font-size: 0.95em !important;
+    min-height: 36px;
+    --border-radius: 10px;
+  }
+
+  .token-balance-container {
+    gap: 6px;
+    margin-top: 4px;
+    padding: 8px;
+    border-radius: 8px;
+  }
+  .token-balance-container .coin-emoji {
+    font-size: 18px;
+  }
+  .token-balance-container .balance-text {
+    font-size: 1em !important;
+  }
+
+  .address-display {
+    font-size: 0.75em !important;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-top: 2px;
+  }
+
+  .settings-card-dark,
+  .settings-card-light {
+    border-radius: 10px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+  }
+
+  .settings-card-dark ion-icon,
+  .settings-card-light ion-icon {
+    font-size: 1em;
+    margin-right: 4px;
+  }
+
+  .settings-card-dark ion-toggle,
+  .settings-card-light ion-toggle {
+    min-width: 36px;
+    min-height: 20px;
+  }
+
+  .settings-card-dark ion-select,
+  .settings-card-light ion-select {
+    font-size: 0.95em;
+    min-height: 32px;
+  }
+
+  .settings-content-dark,
+  .settings-content-light {
+    font-size: 0.95em;
   }
 }
