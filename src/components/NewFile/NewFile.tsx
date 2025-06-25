@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import * as AppGeneral from "../socialcalc/index.js";
 import { File, Local } from "../Storage/LocalStorage";
-import { DATA } from "../../app-data-new";
+import { DATA } from "../../app-data";
 import { IonAlert, IonIcon, IonToast } from "@ionic/react";
 import { add, addCircle, addOutline, documentText } from "ionicons/icons";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -13,7 +13,7 @@ const NewFile: React.FC = () => {
   const [toastMessage, setToastMessage] = useState("");
   const [showNewInvoiceAlert, setShowNewInvoiceAlert] = useState(false);
   const { isDarkMode } = useTheme();
-  const [device] = useState("Android");
+  const [device] = useState(AppGeneral.getDeviceType());
   const { selectedFile, billType, store, updateSelectedFile, resetToDefaults } =
     useInvoice();
 

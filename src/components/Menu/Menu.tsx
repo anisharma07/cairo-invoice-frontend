@@ -1,18 +1,30 @@
 import React, { useState } from "react";
 import * as AppGeneral from "../socialcalc/index.js";
 import { File, Local } from "../Storage/LocalStorage";
-import { isPlatform, IonToast } from "@ionic/react";
+import { isPlatform, IonToast, IonLoading } from "@ionic/react";
 import { EmailComposer } from "capacitor-email-composer";
 import { Printer } from "@ionic-native/printer";
 import { IonActionSheet, IonAlert } from "@ionic/react";
-import { saveOutline, save, mail, print, cloudUpload } from "ionicons/icons";
-import { APP_NAME } from "../../app-data-new";
+import {
+  saveOutline,
+  save,
+  mail,
+  print,
+  cloudUpload,
+  download,
+  documentOutline,
+} from "ionicons/icons";
+import { APP_NAME } from "../../app-data";
 import { useAccount } from "@starknet-react/core";
 import { uploadJSONToIPFS } from "../../utils/ipfs";
 import { useSaveFile } from "../../hooks/useContractWrite";
 import { useIsUserSubscribed } from "../../hooks/useContractRead";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useInvoice } from "../../contexts/InvoiceContext";
+import { exportHTMLAsPDF } from "../../services/exportAsPdf.js";
+import { exportCSV, parseSocialCalcCSV } from "../../services/exportAsCsv";
+import { Share } from "@capacitor/share";
+import { Filesystem, Directory, Encoding } from "@capacitor/filesystem";
 
 const Menu: React.FC<{
   showM: boolean;
@@ -31,8 +43,13 @@ const Menu: React.FC<{
   const [showAlert3, setShowAlert3] = useState(false);
   const [showAlert4, setShowAlert4] = useState(false);
   const [showAlert5, setShowAlert5] = useState(false); // For blockchain save
+  const [showAlert6, setShowAlert6] = useState(false); // For PDF filename
+  const [showAlert7, setShowAlert7] = useState(false); // For CSV filename
   const [showToast1, setShowToast1] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isGeneratingCSV, setIsGeneratingCSV] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState("");
   /* Utility functions */
   const _validateName = async (filename) => {
     filename = filename.trim();
@@ -81,23 +98,224 @@ const Menu: React.FC<{
       printWindow.print();
     }
   };
-  const doSave = () => {
-    if (selectedFile === "default") {
-      setShowAlert1(true);
-      return;
+
+  const doGeneratePDF = async (filename?: string) => {
+    try {
+      setIsGeneratingPDF(true);
+      setPdfProgress("Preparing content for PDF...");
+
+      // Get the current HTML content from the spreadsheet
+      const htmlContent = AppGeneral.getCurrentHTMLContent();
+
+      if (!htmlContent || htmlContent.trim() === "") {
+        setToastMessage("No content available to export as PDF");
+        setShowToast1(true);
+        setIsGeneratingPDF(false);
+        return;
+      }
+
+      const pdfFilename = filename || selectedFile || "invoice";
+
+      // Check if we're on a mobile device
+      if (isPlatform("hybrid") || isPlatform("mobile")) {
+        // Generate PDF as blob for sharing on mobile
+        const pdfBlob = await exportHTMLAsPDF(htmlContent, {
+          filename: pdfFilename,
+          format: "a4",
+          orientation: "portrait",
+          margin: 10,
+          quality: 2,
+          returnBlob: true,
+          onProgress: (message: string) => {
+            setPdfProgress(message);
+          },
+        });
+
+        if (pdfBlob) {
+          try {
+            // Convert blob to base64
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+              const base64Data = reader.result as string;
+              const base64 = base64Data.split(",")[1]; // Remove data:application/pdf;base64, prefix
+
+              try {
+                // Save to temporary file
+                const tempFile = await Filesystem.writeFile({
+                  path: `${pdfFilename}.pdf`,
+                  data: base64,
+                  directory: Directory.Cache,
+                });
+
+                // Share the file
+                await Share.share({
+                  title: `${pdfFilename}.pdf`,
+                  text: "Invoice PDF generated successfully",
+                  url: tempFile.uri,
+                  dialogTitle: "Share PDF",
+                });
+
+                setToastMessage(`PDF generated and ready to share!`);
+                setShowToast1(true);
+              } catch (shareError) {
+                console.log("Error sharing PDF:", shareError);
+                // Fallback: still generate PDF normally
+                await exportHTMLAsPDF(htmlContent, {
+                  filename: pdfFilename,
+                  format: "a4",
+                  orientation: "portrait",
+                  margin: 10,
+                  quality: 2,
+                  onProgress: (message: string) => {
+                    setPdfProgress(message);
+                  },
+                });
+                setToastMessage(`PDF saved as ${pdfFilename}.pdf`);
+                setShowToast1(true);
+              }
+            };
+            reader.readAsDataURL(pdfBlob as Blob);
+          } catch (error) {
+            console.error("Error processing PDF for sharing:", error);
+            // Fallback to normal PDF generation
+            await exportHTMLAsPDF(htmlContent, {
+              filename: pdfFilename,
+              format: "a4",
+              orientation: "portrait",
+              margin: 10,
+              quality: 2,
+              onProgress: (message: string) => {
+                setPdfProgress(message);
+              },
+            });
+            setToastMessage(`PDF saved as ${pdfFilename}.pdf`);
+            setShowToast1(true);
+          }
+        }
+      } else {
+        // Desktop behavior - use original export function
+        await exportHTMLAsPDF(htmlContent, {
+          filename: pdfFilename,
+          format: "a4",
+          orientation: "portrait",
+          margin: 10,
+          quality: 2,
+          onProgress: (message: string) => {
+            setPdfProgress(message);
+          },
+        });
+
+        setToastMessage(`PDF saved as ${pdfFilename}.pdf`);
+        setShowToast1(true);
+      }
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      setToastMessage("Failed to generate PDF. Please try again.");
+      setShowToast1(true);
+    } finally {
+      setIsGeneratingPDF(false);
+      setPdfProgress("");
     }
-    const content = encodeURIComponent(AppGeneral.getSpreadsheetContent());
-    const data = store._getFile(selectedFile);
-    const file = new File(
-      (data as any).created,
-      new Date().toString(),
-      content,
-      selectedFile,
-      billType
-    );
-    store._saveFile(file);
-    updateSelectedFile(selectedFile);
-    setShowAlert2(true);
+  };
+
+  const doGenerateCSV = async (filename?: string) => {
+    try {
+      setIsGeneratingCSV(true);
+
+      // Get CSV content from the spreadsheet using SocialCalc
+      const csvContent = AppGeneral.getCSVContent();
+
+      if (!csvContent || csvContent.trim() === "") {
+        setToastMessage("No data available to export as CSV");
+        setShowToast1(true);
+        setIsGeneratingCSV(false);
+        return;
+      }
+
+      const csvFilename = filename || selectedFile || "invoice_data";
+
+      // Parse and clean the CSV content
+      const cleanedCSV = parseSocialCalcCSV(csvContent);
+
+      // Check if we're on a mobile device
+      if (isPlatform("hybrid") || isPlatform("mobile")) {
+        try {
+          // Generate CSV as blob for sharing on mobile
+          const csvBlob = await exportCSV(cleanedCSV, {
+            filename: csvFilename,
+            returnBlob: true,
+          });
+
+          if (csvBlob) {
+            // Convert blob to base64
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+              const base64Data = reader.result as string;
+              const base64 = base64Data.split(",")[1]; // Remove data prefix
+
+              try {
+                // Save to temporary file
+                const tempFile = await Filesystem.writeFile({
+                  path: `${csvFilename}.csv`,
+                  data: base64,
+                  directory: Directory.Cache,
+                });
+
+                // Share the file
+                await Share.share({
+                  title: `${csvFilename}.csv`,
+                  text: "Invoice data exported as CSV",
+                  url: tempFile.uri,
+                  dialogTitle: "Share CSV",
+                });
+
+                setToastMessage(`CSV generated and ready to share!`);
+                setShowToast1(true);
+              } catch (shareError) {
+                console.log("Error sharing CSV:", shareError);
+                // Fallback: generate CSV normally
+                await exportCSV(cleanedCSV, {
+                  filename: csvFilename,
+                });
+                setToastMessage(`CSV saved as ${csvFilename}.csv`);
+                setShowToast1(true);
+              }
+            };
+            reader.readAsDataURL(csvBlob as Blob);
+          }
+        } catch (error) {
+          console.error("Error processing CSV for sharing:", error);
+          // Fallback to normal CSV generation
+          await exportCSV(cleanedCSV, {
+            filename: csvFilename,
+          });
+          setToastMessage(`CSV saved as ${csvFilename}.csv`);
+          setShowToast1(true);
+        }
+      } else {
+        // Desktop behavior - direct download
+        await exportCSV(cleanedCSV, {
+          filename: csvFilename,
+        });
+
+        setToastMessage(`CSV saved as ${csvFilename}.csv`);
+        setShowToast1(true);
+      }
+    } catch (error) {
+      console.error("Error generating CSV:", error);
+      setToastMessage("Failed to generate CSV. Please try again.");
+      setShowToast1(true);
+    } finally {
+      setIsGeneratingCSV(false);
+    }
+  };
+
+  const showPDFNameDialog = () => {
+    setShowAlert6(true);
+  };
+
+  const showCSVNameDialog = () => {
+    setShowAlert7(true);
   };
 
   const doSaveToBlockchain = async () => {
@@ -245,6 +463,22 @@ const Menu: React.FC<{
             },
           },
           {
+            text: "Export as PDF",
+            icon: download,
+            handler: () => {
+              showPDFNameDialog();
+              console.log("Download as PDF clicked");
+            },
+          },
+          {
+            text: "Export as CSV",
+            icon: documentOutline,
+            handler: () => {
+              showCSVNameDialog();
+              console.log("Export as CSV clicked");
+            },
+          },
+          {
             text: "Email",
             icon: mail,
             handler: () => {
@@ -307,6 +541,90 @@ const Menu: React.FC<{
         message={"File " + getCurrentFileName() + " saved successfully"}
         buttons={["Ok"]}
       />
+      <IonAlert
+        animated
+        isOpen={showAlert6}
+        onDidDismiss={() => setShowAlert6(false)}
+        header="Download as PDF"
+        inputs={[
+          {
+            name: "pdfFilename",
+            type: "text",
+            placeholder: "Enter PDF filename",
+            value: selectedFile || "invoice",
+          },
+        ]}
+        buttons={[
+          {
+            text: "Cancel",
+            role: "cancel",
+          },
+          {
+            text: "Download",
+            handler: (alertData) => {
+              const filename =
+                alertData.pdfFilename?.trim() || selectedFile || "invoice";
+              doGeneratePDF(filename);
+            },
+          },
+        ]}
+      />
+      <IonAlert
+        animated
+        isOpen={showAlert7}
+        onDidDismiss={() => setShowAlert7(false)}
+        header="Export as CSV"
+        inputs={[
+          {
+            name: "csvFilename",
+            type: "text",
+            placeholder: "Enter CSV filename",
+            value: selectedFile || "invoice_data",
+          },
+        ]}
+        buttons={[
+          {
+            text: "Cancel",
+            role: "cancel",
+          },
+          {
+            text: "Export",
+            handler: (alertData) => {
+              const filename =
+                alertData.csvFilename?.trim() || selectedFile || "invoice_data";
+              doGenerateCSV(filename);
+            },
+          },
+        ]}
+      />
+      <IonAlert
+        animated
+        isOpen={showAlert7}
+        onDidDismiss={() => setShowAlert7(false)}
+        header="Download as CSV"
+        inputs={[
+          {
+            name: "csvFilename",
+            type: "text",
+            placeholder: "Enter CSV filename",
+            value: selectedFile || "invoice_data",
+          },
+        ]}
+        buttons={[
+          {
+            text: "Cancel",
+            role: "cancel",
+          },
+          {
+            text: "Download",
+            handler: (alertData) => {
+              const filename =
+                alertData.csvFilename?.trim() || selectedFile || "invoice_data";
+              doGenerateCSV(filename);
+            },
+          },
+        ]}
+      />
       <IonToast
         animated
         isOpen={showToast1}
@@ -326,6 +644,21 @@ const Menu: React.FC<{
         position="bottom"
         message={toastMessage}
         duration={3000}
+      />
+      <IonLoading
+        isOpen={isGeneratingPDF}
+        message={pdfProgress || "Generating PDF..."}
+        onDidDismiss={() => setIsGeneratingPDF(false)}
+      />
+      <IonLoading
+        isOpen={isGeneratingCSV}
+        message="Generating CSV..."
+        onDidDismiss={() => setIsGeneratingCSV(false)}
+      />
+      <IonLoading
+        isOpen={isGeneratingCSV}
+        message={"Generating CSV..."}
+        onDidDismiss={() => setIsGeneratingCSV(false)}
       />
     </React.Fragment>
   );
