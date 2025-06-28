@@ -26,6 +26,7 @@
     "@types/crypto-js": "^4.2.2",
     "@types/react-router-dom": "^5.3.3",
     "@web3-storage/w3up-client": "^17.2.0",
+    "aws-sdk": "^2.1692.0",
     "axios": "^1.9.0",
     "capacitor-email-composer": "^5.0.0",
     "crypto-js": "^4.2.0",

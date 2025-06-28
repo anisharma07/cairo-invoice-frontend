@@ -15,6 +15,7 @@ import {
   documentOutline,
   documents,
   key,
+  server,
 } from "ionicons/icons";
 import { APP_NAME } from "../../app-data";
 import { useAccount } from "@starknet-react/core";
@@ -51,6 +52,7 @@ const Menu: React.FC<{
   const [showAlert8, setShowAlert8] = useState(false); // For export all PDF filename
   const [showAlert9, setShowAlert9] = useState(false); // For password protection
   const [showAlert10, setShowAlert10] = useState(false); // For password input when loading
+  const [showAlert11, setShowAlert11] = useState(false); // For server save filename
   const [showToast1, setShowToast1] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
@@ -61,6 +63,7 @@ const Menu: React.FC<{
   const [passwordProtect, setPasswordProtect] = useState(false);
   const [filePassword, setFilePassword] = useState("");
   const [currentFileForPassword, setCurrentFileForPassword] = useState("");
+
   /* Utility functions */
   const _validateName = async (filename) => {
     filename = filename.trim();
@@ -542,6 +545,7 @@ const Menu: React.FC<{
           passwordProtect,
           passwordProtect ? filePassword : undefined
         );
+        console.log(file);
         // const data = { created: file.created, modified: file.modified, content: file.content, password: file.password };
         // console.log(JSON.stringify(data));
         store._saveFile(file);
@@ -552,6 +556,47 @@ const Menu: React.FC<{
         setFilePassword("");
 
         setShowAlert4(true);
+      } else {
+        setShowToast1(true);
+      }
+    }
+  };
+
+  const doSaveToServer = async (filename) => {
+    if (filename) {
+      if (await _validateName(filename)) {
+        try {
+          setToastMessage("Saving to server...");
+          setShowToast1(true);
+
+          const content = AppGeneral.getSpreadsheetContent();
+
+          // Import the server files service
+          const { serverFilesService } = await import(
+            "../../services/serverFiles"
+          );
+
+          // Check if user is authenticated
+          if (!serverFilesService.isAuthenticated()) {
+            setToastMessage("Please login to server files first");
+            setShowToast1(true);
+            return;
+          }
+
+          // Upload to server
+          const result = await serverFilesService.uploadInvoiceData(
+            filename,
+            content,
+            billType
+          );
+
+          setToastMessage(`File saved to server as server_${filename}`);
+          setShowToast1(true);
+        } catch (error) {
+          console.error("Error saving to server:", error);
+          setToastMessage("Failed to save to server. Please try again.");
+          setShowToast1(true);
+        }
       } else {
         setShowToast1(true);
       }
@@ -597,6 +642,30 @@ const Menu: React.FC<{
       });
     } else {
       alert("This Functionality works on Anroid/IOS devices");
+    }
+  };
+
+  // Function to generate invoice filename with current datetime
+  const generateInvoiceFilename = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    const seconds = String(now.getSeconds()).padStart(2, "0");
+
+    return `invoice_${year}${month}${day}_${hours}${minutes}${seconds}`;
+  };
+
+  // Function to select text in input field after dialog opens
+  const selectInputText = (inputElement: HTMLIonInputElement) => {
+    if (inputElement && inputElement.getInputElement) {
+      inputElement.getInputElement().then((nativeInput) => {
+        if (nativeInput) {
+          nativeInput.select();
+        }
+      });
     }
   };
 
@@ -674,6 +743,14 @@ const Menu: React.FC<{
           doSaveToBlockchain();
           console.log("Save to Blockchain clicked");
         },
+      },
+      {
+        text: "Save to Server",
+        icon: server,
+        handler: () => {
+          setShowAlert11(true);
+          console.log("Save to Server clicked");
+        },
       }
     );
 
@@ -715,7 +792,12 @@ const Menu: React.FC<{
         onDidDismiss={() => setShowAlert3(false)}
         header="Save As"
         inputs={[
-          { name: "filename", type: "text", placeholder: "Enter filename" },
+          {
+            name: "filename",
+            type: "text",
+            placeholder: "Enter filename",
+            value: generateInvoiceFilename(),
+          },
         ]}
         buttons={[
           {
@@ -725,6 +807,15 @@ const Menu: React.FC<{
             },
           },
         ]}
+        onDidPresent={(ev) => {
+          // Select the text in the input field when dialog opens
+          const inputElement = ev.target?.querySelector(
+            "ion-input"
+          ) as HTMLIonInputElement;
+          if (inputElement) {
+            setTimeout(() => selectInputText(inputElement), 100);
+          }
+        }}
       />
       <IonAlert
         animated
@@ -864,7 +955,10 @@ const Menu: React.FC<{
             name: "filename",
             type: "text",
             placeholder: "Enter filename",
-            value: selectedFile === "default" ? "" : selectedFile,
+            value:
+              selectedFile === "default"
+                ? generateInvoiceFilename()
+                : selectedFile,
           },
         ]}
         buttons={[
@@ -885,6 +979,15 @@ const Menu: React.FC<{
             },
           },
         ]}
+        onDidPresent={(ev) => {
+          // Select the text in the filename input field when dialog opens
+          const inputElements = ev.target?.querySelectorAll(
+            "ion-input"
+          ) as NodeListOf<HTMLIonInputElement>;
+          if (inputElements && inputElements.length > 1) {
+            setTimeout(() => selectInputText(inputElements[1]), 100); // Select the filename input (second input)
+          }
+        }}
       />
       <IonAlert
         animated
@@ -920,6 +1023,51 @@ const Menu: React.FC<{
           },
         ]}
       />
+      <IonAlert
+        animated
+        isOpen={showAlert11}
+        onDidDismiss={() => setShowAlert11(false)}
+        header="Save to Server"
+        inputs={[
+          {
+            name: "serverFilename",
+            type: "text",
+            placeholder: "Enter filename",
+            value:
+              selectedFile === "default"
+                ? generateInvoiceFilename()
+                : selectedFile,
+          },
+        ]}
+        buttons={[
+          {
+            text: "Cancel",
+            role: "cancel",
+          },
+          {
+            text: "Save",
+            handler: (alertData) => {
+              const filename = alertData.serverFilename?.trim();
+              if (filename) {
+                doSaveToServer(filename);
+              } else {
+                setToastMessage("Please enter a filename");
+                setShowToast1(true);
+                return false; // Prevent dialog from closing
+              }
+            },
+          },
+        ]}
+        onDidPresent={(ev) => {
+          // Select the text in the input field when dialog opens
+          const inputElement = ev.target?.querySelector(
+            "ion-input"
+          ) as HTMLIonInputElement;
+          if (inputElement) {
+            setTimeout(() => selectInputText(inputElement), 100);
+          }
+        }}
+      />
       <IonToast
         animated
         isOpen={showToast1}
@@ -936,7 +1084,7 @@ const Menu: React.FC<{
             setShowAlert3(true);
           }
         }}
-        position="bottom"
+        position="top"
         message={toastMessage}
         duration={3000}
       />

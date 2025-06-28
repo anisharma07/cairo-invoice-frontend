@@ -20,6 +20,8 @@ import {
   pencil,
   saveSharp,
   syncOutline,
+  arrowUndo,
+  arrowRedo,
 } from "ionicons/icons";
 import "./Home.css";
 import NewFile from "../components/NewFile/NewFile";
@@ -268,6 +270,18 @@ const Home: React.FC = () => {
           </IonTitle>
 
           <IonButtons slot="end" className="ion-padding-end">
+            <IonIcon
+              icon={arrowUndo}
+              size="large"
+              onClick={() => AppGeneral.undo()}
+              style={{ cursor: "pointer", marginRight: "12px" }}
+            />
+            <IonIcon
+              icon={arrowRedo}
+              size="large"
+              onClick={() => AppGeneral.redo()}
+              style={{ cursor: "pointer", marginRight: "12px" }}
+            />
             <div style={{ marginRight: "12px" }}>
               <NewFile data-testid="new-file-btn" />
             </div>

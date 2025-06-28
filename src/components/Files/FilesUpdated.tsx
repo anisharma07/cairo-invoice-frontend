@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import "./Files.css";
 import * as AppGeneral from "../socialcalc/index.js";
 import { DATA } from "../../app-data.js";
-import { File as LocalFile, Local } from "../Storage/LocalStorage";
+import { Local } from "../Storage/LocalStorage";
 import {
   IonIcon,
   IonItem,
@@ -28,8 +28,6 @@ import {
   IonCardHeader,
   IonCardTitle,
   IonModal,
-  IonFab,
-  IonFabButton,
 } from "@ionic/react";
 import {
   trash,
@@ -39,8 +37,8 @@ import {
   server,
   logIn,
   personAdd,
+  cloudUpload,
   download,
-  folderOpen,
 } from "ionicons/icons";
 import { useAccount } from "@starknet-react/core";
 import { useGetUserFiles } from "../../hooks/useContractRead";
@@ -53,7 +51,6 @@ import {
   LoginCredentials,
   RegisterCredentials,
 } from "../../services/serverFiles";
-import { useInvoice } from "../../contexts/InvoiceContext";
 
 const Files: React.FC<{
   store: Local;
@@ -61,7 +58,6 @@ const Files: React.FC<{
   updateSelectedFile: Function;
   updateBillType: Function;
 }> = (props) => {
-  const { billType, store, updateSelectedFile, updateBillType } = useInvoice();
   const { address } = useAccount();
   const { isDarkMode } = useTheme();
   const history = useHistory();
@@ -90,6 +86,9 @@ const Files: React.FC<{
   const [serverFilesLoading, setServerFilesLoading] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
   const [deletingFile, setDeletingFile] = useState<number | null>(null);
 
   // Auth state
@@ -134,71 +133,20 @@ const Files: React.FC<{
   // Edit local file
   const editFile = async (key: string) => {
     try {
-      console.log("Attempting to edit file:", key);
       const isEncrypted = await props.store._isFileEncrypted(key);
-      console.log("Is file encrypted:", isEncrypted);
-
       if (isEncrypted) {
         setFileRequiringPassword(key);
         setShowPasswordAlert(true);
         return;
       }
-
       const data = await props.store._getFile(key);
-      console.log("File data retrieved:", {
-        name: data.name,
-        contentLength: data.content?.length,
-        billType: data.billType,
-        hasContent: !!data.content,
-      });
-
-      if (!data.content) {
-        setToastMessage("File content is empty or corrupted");
-        setShowToast(true);
-        return;
-      }
-
-      const decodedContent = decodeURIComponent(data.content);
-      console.log("Decoded content length:", decodedContent.length);
-      console.log("Decoded content preview:", decodedContent.substring(0, 200));
-
-      // Ensure SocialCalc is properly initialized before loading the file
-      // First, try to get the current workbook control to see if it's initialized
-      try {
-        const currentControl = AppGeneral.getWorkbookInfo();
-        console.log("Current workbook info:", currentControl);
-
-        if (currentControl && currentControl.workbook) {
-          // SocialCalc is initialized, use viewFile
-          AppGeneral.viewFile(key, decodedContent);
-          console.log("File loaded successfully with viewFile");
-        } else {
-          // SocialCalc not initialized, initialize it first
-          console.log("SocialCalc not initialized, initializing...");
-          AppGeneral.initializeApp(decodedContent);
-          console.log("File loaded successfully with initializeApp");
-        }
-      } catch (error) {
-        console.error("Error checking SocialCalc state:", error);
-        // Fallback: try to initialize the app
-        try {
-          AppGeneral.initializeApp(decodedContent);
-          console.log("File loaded successfully with initializeApp (fallback)");
-        } catch (initError) {
-          console.error("initializeApp failed:", initError);
-          throw new Error(
-            "Failed to load file: SocialCalc initialization error"
-          );
-        }
-      }
-
+      AppGeneral.viewFile(key, decodeURIComponent(data.content));
       props.updateSelectedFile(key);
       props.updateBillType(data.billType);
       setToastMessage(`Loaded ${key}`);
       setShowToast(true);
       history.push("/home");
     } catch (error) {
-      console.error("Error in editFile:", error);
       setToastMessage("Failed to load file");
       setShowToast(true);
     }
@@ -314,6 +262,25 @@ const Files: React.FC<{
     setShowToast(true);
   };
 
+  const handleFileUpload = async () => {
+    if (!selectedFile) return;
+
+    setUploadingFile(true);
+    try {
+      await serverFilesService.uploadFile(selectedFile);
+      setShowUploadModal(false);
+      setSelectedFile(null);
+      setToastMessage("File uploaded successfully");
+      setShowToast(true);
+      loadServerFiles();
+    } catch (error) {
+      setToastMessage(error instanceof Error ? error.message : "Upload failed");
+      setShowToast(true);
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
   const handleFileDownload = async (file: ServerFile) => {
     try {
       const blob = await serverFilesService.downloadFile(file.id);
@@ -347,106 +314,6 @@ const Files: React.FC<{
       setShowToast(true);
     } finally {
       setDeletingFile(null);
-    }
-  };
-
-  const handleMoveToLocal = async (file: ServerFile) => {
-    try {
-      setToastMessage("Moving file to local storage...");
-      setShowToast(true);
-
-      // Download the file from server
-      const blob = await serverFilesService.downloadFile(file.id);
-
-      // Convert blob to text
-      const text = await blob.text();
-
-      // Parse the JSON content
-      const fileData = JSON.parse(text);
-      console.log("Server file data:", fileData);
-
-      // Check if this is a server invoice file (has the expected structure)
-      if (
-        fileData.content &&
-        fileData.fileName &&
-        fileData.billType !== undefined
-      ) {
-        // The content from server is already the raw content, not URL-encoded
-        // We need to URL-encode it for local storage
-        const encodedContent = encodeURIComponent(fileData.content);
-
-        // Remove the "server_" prefix from the filename
-        const localFileName = fileData.fileName.replace("server_", "");
-
-        console.log("Creating local file with:", {
-          fileName: localFileName,
-          contentLength: fileData.content.length,
-          encodedContentLength: encodedContent.length,
-          billType: fileData.billType,
-        });
-
-        // Validate the filename (basic check)
-        if (!localFileName || localFileName.trim() === "") {
-          setToastMessage("Invalid filename. Cannot move to local storage.");
-          setShowToast(true);
-          return;
-        }
-
-        // Check if file already exists locally
-        const fileExists = await props.store._checkKey(localFileName);
-        if (fileExists) {
-          setToastMessage(
-            `File "${localFileName}" already exists in local storage.`
-          );
-          setShowToast(true);
-          return;
-        }
-
-        // Create a local file
-        const localFile = new LocalFile(
-          new Date().toString(),
-          new Date().toString(),
-          encodedContent, // Use URL-encoded content
-          localFileName, // Use filename without server_ prefix
-          fileData.billType,
-          false // isEncrypted = false for server files
-        );
-
-        console.log("Local file created:", {
-          name: localFile.name,
-          contentLength: localFile.content.length,
-          billType: localFile.billType,
-          created: localFile.created,
-          modified: localFile.modified,
-        });
-
-        // Save to local storage
-        await props.store._saveFile(localFile);
-        console.log("File saved to local storage successfully");
-
-        // Verify the file was saved correctly
-        const savedData = await props.store._getFile(localFileName);
-        console.log("Verification - saved file data:", {
-          name: savedData.name,
-          contentLength: savedData.content?.length,
-          billType: savedData.billType,
-          hasContent: !!savedData.content,
-        });
-
-        setToastMessage(`File moved to local storage as ${localFile.name}`);
-        setShowToast(true);
-
-        // Refresh the file list
-        await renderFileList();
-      } else {
-        console.error("Invalid file structure:", fileData);
-        setToastMessage("Invalid file format. Cannot move to local storage.");
-        setShowToast(true);
-      }
-    } catch (error) {
-      console.error("Error moving file to local storage:", error);
-      setToastMessage("Failed to move file to local storage");
-      setShowToast(true);
     }
   };
 
@@ -742,8 +609,6 @@ const Files: React.FC<{
                               </p>
                               <p>
                                 Size: {(file.file_size / 1024).toFixed(2)} KB
-                                {file.filename.startsWith("server_") &&
-                                  " • 📄 Invoice File"}
                               </p>
                             </IonLabel>
                             <IonBadge
@@ -763,19 +628,6 @@ const Files: React.FC<{
                                 handleFileDownload(file);
                               }}
                             />
-                            {file.filename.startsWith("server_") && (
-                              <IonIcon
-                                icon={folderOpen}
-                                color="success"
-                                slot="end"
-                                size="small"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleMoveToLocal(file);
-                                }}
-                                title="Move to Local Storage"
-                              />
-                            )}
                             <IonIcon
                               icon={trash}
                               color="danger"
@@ -868,6 +720,10 @@ const Files: React.FC<{
                 gap: "8px",
               }}
             >
+              <IonButton size="small" onClick={() => setShowUploadModal(true)}>
+                <IonIcon icon={cloudUpload} slot="start" />
+                Upload File
+              </IonButton>
               <IonButton size="small" fill="outline" onClick={handleLogout}>
                 Logout
               </IonButton>
@@ -973,6 +829,42 @@ const Files: React.FC<{
             <div style={{ marginTop: "16px" }}>
               <IonButton expand="block" onClick={handleRegister}>
                 Register
+              </IonButton>
+            </div>
+          </div>
+        </IonContent>
+      </IonModal>
+
+      {/* Upload Modal */}
+      <IonModal
+        isOpen={showUploadModal}
+        onDidDismiss={() => setShowUploadModal(false)}
+      >
+        <IonHeader>
+          <IonToolbar>
+            <IonTitle>Upload File</IonTitle>
+          </IonToolbar>
+        </IonHeader>
+        <IonContent>
+          <div style={{ padding: "16px" }}>
+            <input
+              type="file"
+              onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+              style={{ marginBottom: "16px" }}
+            />
+            <div style={{ display: "flex", gap: "8px" }}>
+              <IonButton
+                expand="block"
+                onClick={handleFileUpload}
+                disabled={!selectedFile || uploadingFile}
+              >
+                {uploadingFile ? <IonSpinner name="circular" /> : "Upload"}
+              </IonButton>
+              <IonButton
+                fill="outline"
+                onClick={() => setShowUploadModal(false)}
+              >
+                Cancel
               </IonButton>
             </div>
           </div>
