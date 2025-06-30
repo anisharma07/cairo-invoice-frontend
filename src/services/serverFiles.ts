@@ -1,4 +1,5 @@
-const API_BASE_URL = "http://localhost:8888"; // Update with your server URL
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8888"; // Use environment variable with fallback
 
 export interface ServerFile {
   id: number;

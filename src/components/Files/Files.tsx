@@ -753,19 +753,9 @@ const Files: React.FC<{
                             >
                               SERVER
                             </IonBadge>
-                            <IonIcon
-                              icon={download}
-                              color="primary"
-                              slot="end"
-                              size="small"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleFileDownload(file);
-                              }}
-                            />
                             {file.filename.startsWith("server_") && (
                               <IonIcon
-                                icon={folderOpen}
+                                icon={download}
                                 color="success"
                                 slot="end"
                                 size="small"
