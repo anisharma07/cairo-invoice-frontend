@@ -29,6 +29,7 @@ import { exportAllSheetsAsPDF } from "../../services/exportAllSheetsAsPdf";
 import { exportCSV, parseSocialCalcCSV } from "../../services/exportAsCsv";
 import { Share } from "@capacitor/share";
 import { Filesystem, Directory, Encoding } from "@capacitor/filesystem";
+import MenuDialogs from "./MenuDialogs.js";
 
 const Menu: React.FC<{
   showM: boolean;
@@ -655,7 +656,7 @@ const Menu: React.FC<{
     const minutes = String(now.getMinutes()).padStart(2, "0");
     const seconds = String(now.getSeconds()).padStart(2, "0");
 
-    return `invoice_${year}${month}${day}_${hours}${minutes}${seconds}`;
+    return `invoice-${year}${month}${day}-${hours}${minutes}${seconds}`;
   };
 
   // Function to select text in input field after dialog opens
@@ -766,342 +767,59 @@ const Menu: React.FC<{
         onDidDismiss={() => props.setM()}
         buttons={getMenuButtons()}
       />
-      <IonAlert
-        animated
-        isOpen={showAlert1}
-        onDidDismiss={() => setShowAlert1(false)}
-        header="Alert Message"
-        message={
-          "Cannot update " +
-          getCurrentFileName() +
-          " file! Use Save As Button to save."
-        }
-        buttons={["Ok"]}
-      />
-      <IonAlert
-        animated
-        isOpen={showAlert2}
-        onDidDismiss={() => setShowAlert2(false)}
-        header="Save"
-        message={"File " + getCurrentFileName() + " updated successfully"}
-        buttons={["Ok"]}
-      />
-      <IonAlert
-        animated
-        isOpen={showAlert3}
-        onDidDismiss={() => setShowAlert3(false)}
-        header="Save As"
-        inputs={[
-          {
-            name: "filename",
-            type: "text",
-            placeholder: "Enter filename",
-            value: generateInvoiceFilename(),
-          },
-        ]}
-        buttons={[
-          {
-            text: "Ok",
-            handler: (alertData) => {
-              doSaveAs(alertData.filename);
-            },
-          },
-        ]}
-        onDidPresent={(ev) => {
-          // Select the text in the input field when dialog opens
-          const inputElement = ev.target?.querySelector(
-            "ion-input"
-          ) as HTMLIonInputElement;
-          if (inputElement) {
-            setTimeout(() => selectInputText(inputElement), 100);
-          }
-        }}
-      />
-      <IonAlert
-        animated
-        isOpen={showAlert4}
-        onDidDismiss={() => setShowAlert4(false)}
-        header="Save As"
-        message={"File " + getCurrentFileName() + " saved successfully"}
-        buttons={["Ok"]}
-      />
-      <IonAlert
-        animated
-        isOpen={showAlert6}
-        onDidDismiss={() => setShowAlert6(false)}
-        header="Export as PDF"
-        inputs={[
-          {
-            name: "pdfFilename",
-            type: "text",
-            placeholder: "Enter PDF filename",
-            value: selectedFile || "invoice",
-          },
-        ]}
-        buttons={[
-          {
-            text: "Cancel",
-            role: "cancel",
-          },
-          {
-            text: "Download",
-            handler: (alertData) => {
-              const filename =
-                alertData.pdfFilename?.trim() || selectedFile || "invoice";
-              doGeneratePDF(filename);
-            },
-          },
-        ]}
-      />
-      <IonAlert
-        animated
-        isOpen={showAlert7}
-        onDidDismiss={() => setShowAlert7(false)}
-        header="Export as CSV"
-        inputs={[
-          {
-            name: "csvFilename",
-            type: "text",
-            placeholder: "Enter CSV filename",
-            value: selectedFile || "invoice_data",
-          },
-        ]}
-        buttons={[
-          {
-            text: "Cancel",
-            role: "cancel",
-          },
-          {
-            text: "Export",
-            handler: (alertData) => {
-              const filename =
-                alertData.csvFilename?.trim() || selectedFile || "invoice_data";
-              doGenerateCSV(filename);
-            },
-          },
-        ]}
-      />
-      <IonAlert
-        animated
-        isOpen={showAlert7}
-        onDidDismiss={() => setShowAlert7(false)}
-        header="Download as CSV"
-        inputs={[
-          {
-            name: "csvFilename",
-            type: "text",
-            placeholder: "Enter CSV filename",
-            value: selectedFile || "invoice_data",
-          },
-        ]}
-        buttons={[
-          {
-            text: "Cancel",
-            role: "cancel",
-          },
-          {
-            text: "Download",
-            handler: (alertData) => {
-              const filename =
-                alertData.csvFilename?.trim() || selectedFile || "invoice_data";
-              doGenerateCSV(filename);
-            },
-          },
-        ]}
-      />
-      <IonAlert
-        animated
-        isOpen={showAlert8}
-        onDidDismiss={() => setShowAlert8(false)}
-        header="Download Workbook as PDF"
-        inputs={[
-          {
-            name: "pdfFilename",
-            type: "text",
-            placeholder: "Enter PDF filename",
-            value: selectedFile ? `${selectedFile}_all_sheets` : "all_invoices",
-          },
-        ]}
-        buttons={[
-          {
-            text: "Cancel",
-            role: "cancel",
-          },
-          {
-            text: "Download",
-            handler: (alertData) => {
-              const filename =
-                alertData.pdfFilename?.trim() ||
-                `${selectedFile}_all_sheets` ||
-                "all_invoices";
-              doExportAllSheetsAsPDF(filename);
-            },
-          },
-        ]}
-      />
-      <IonAlert
-        animated
-        isOpen={showAlert9}
-        onDidDismiss={() => setShowAlert9(false)}
-        header="Password Protection"
-        message="Enter password to protect the file"
-        inputs={[
-          {
-            name: "password",
-            type: "password",
-            placeholder: "Enter password",
-          },
-          {
-            name: "filename",
-            type: "text",
-            placeholder: "Enter filename",
-            value:
-              selectedFile === "default"
-                ? generateInvoiceFilename()
-                : selectedFile,
-          },
-        ]}
-        buttons={[
-          {
-            text: "Cancel",
-            role: "cancel",
-          },
-          {
-            text: "Save",
-            handler: (alertData) => {
-              if (alertData.password && alertData.filename) {
-                doSaveAsWithPassword(alertData.filename, alertData.password);
-              } else {
-                setToastMessage("Please enter both filename and password");
-                setShowToast1(true);
-                return false; // Prevent dialog from closing
-              }
-            },
-          },
-        ]}
-        onDidPresent={(ev) => {
-          // Select the text in the filename input field when dialog opens
-          const inputElements = ev.target?.querySelectorAll(
-            "ion-input"
-          ) as NodeListOf<HTMLIonInputElement>;
-          if (inputElements && inputElements.length > 1) {
-            setTimeout(() => selectInputText(inputElements[1]), 100); // Select the filename input (second input)
-          }
-        }}
-      />
-      <IonAlert
-        animated
-        isOpen={showAlert10}
-        onDidDismiss={() => setShowAlert10(false)}
-        header="Password Input"
-        message="Enter the password to access the file"
-        inputs={[
-          {
-            name: "password",
-            type: "password",
-            placeholder: "Enter password",
-          },
-        ]}
-        buttons={[
-          {
-            text: "Cancel",
-            role: "cancel",
-          },
-          {
-            text: "Access",
-            handler: (alertData) => {
-              if (alertData.password === filePassword) {
-                setPasswordProtect(false);
-                setCurrentFileForPassword("");
-                setToastMessage("File accessed successfully");
-                setShowToast1(true);
-              } else {
-                setToastMessage("Incorrect password");
-                setShowToast1(true);
-              }
-            },
-          },
-        ]}
-      />
-      <IonAlert
-        animated
-        isOpen={showAlert11}
-        onDidDismiss={() => setShowAlert11(false)}
-        header="Save to Server"
-        inputs={[
-          {
-            name: "serverFilename",
-            type: "text",
-            placeholder: "Enter filename",
-            value:
-              selectedFile === "default"
-                ? generateInvoiceFilename()
-                : selectedFile,
-          },
-        ]}
-        buttons={[
-          {
-            text: "Cancel",
-            role: "cancel",
-          },
-          {
-            text: "Save",
-            handler: (alertData) => {
-              const filename = alertData.serverFilename?.trim();
-              if (filename) {
-                doSaveToServer(filename);
-              } else {
-                setToastMessage("Please enter a filename");
-                setShowToast1(true);
-                return false; // Prevent dialog from closing
-              }
-            },
-          },
-        ]}
-        onDidPresent={(ev) => {
-          // Select the text in the input field when dialog opens
-          const inputElement = ev.target?.querySelector(
-            "ion-input"
-          ) as HTMLIonInputElement;
-          if (inputElement) {
-            setTimeout(() => selectInputText(inputElement), 100);
-          }
-        }}
-      />
-      <IonToast
-        animated
-        isOpen={showToast1}
-        onDidDismiss={() => {
-          setShowToast1(false);
-          // Only show Save As alert if it was not a blockchain save attempt
-          if (
-            toastMessage.includes("Filename") ||
-            toastMessage.includes("Special Characters") ||
-            toastMessage.includes("too long") ||
-            toastMessage.includes("empty") ||
-            toastMessage.includes("exists")
-          ) {
-            setShowAlert3(true);
-          }
-        }}
-        position="top"
-        message={toastMessage}
-        duration={3000}
-      />
-      <IonLoading
-        isOpen={isGeneratingPDF}
-        message={pdfProgress || "Generating PDF..."}
-        onDidDismiss={() => setIsGeneratingPDF(false)}
-      />
-      <IonLoading
-        isOpen={isGeneratingCSV}
-        message="Generating CSV..."
-        onDidDismiss={() => setIsGeneratingCSV(false)}
-      />
-      <IonLoading
-        isOpen={isExportingAllPDF}
-        message={exportAllProgress || "Exporting all sheets as PDF..."}
-        onDidDismiss={() => setIsExportingAllPDF(false)}
+      <MenuDialogs
+        // Alert states
+        showAlert1={showAlert1}
+        showAlert2={showAlert2}
+        showAlert3={showAlert3}
+        showAlert4={showAlert4}
+        showAlert6={showAlert6}
+        showAlert7={showAlert7}
+        showAlert8={showAlert8}
+        showAlert9={showAlert9}
+        showAlert10={showAlert10}
+        showAlert11={showAlert11}
+        // Alert setters
+        setShowAlert1={setShowAlert1}
+        setShowAlert2={setShowAlert2}
+        setShowAlert3={setShowAlert3}
+        setShowAlert4={setShowAlert4}
+        setShowAlert6={setShowAlert6}
+        setShowAlert7={setShowAlert7}
+        setShowAlert8={setShowAlert8}
+        setShowAlert9={setShowAlert9}
+        setShowAlert10={setShowAlert10}
+        setShowAlert11={setShowAlert11}
+        // Toast states
+        showToast1={showToast1}
+        setShowToast1={setShowToast1}
+        toastMessage={toastMessage}
+        setToastMessage={setToastMessage}
+        // Loading states
+        isGeneratingPDF={isGeneratingPDF}
+        setIsGeneratingPDF={setIsGeneratingPDF}
+        isGeneratingCSV={isGeneratingCSV}
+        setIsGeneratingCSV={setIsGeneratingCSV}
+        isExportingAllPDF={isExportingAllPDF}
+        setIsExportingAllPDF={setIsExportingAllPDF}
+        // Progress messages
+        pdfProgress={pdfProgress}
+        exportAllProgress={exportAllProgress}
+        // Data for dialogs
+        selectedFile={selectedFile}
+        filePassword={filePassword}
+        // Handlers
+        doSaveAs={doSaveAs}
+        doGeneratePDF={doGeneratePDF}
+        doGenerateCSV={doGenerateCSV}
+        doExportAllSheetsAsPDF={doExportAllSheetsAsPDF}
+        doSaveAsWithPassword={doSaveAsWithPassword}
+        doSaveToServer={doSaveToServer}
+        generateInvoiceFilename={generateInvoiceFilename}
+        selectInputText={selectInputText}
+        // Alert control states
+        showAlert5={showAlert5}
+        showAlert11Open={showAlert11}
       />
     </React.Fragment>
   );
