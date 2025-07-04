@@ -55,6 +55,7 @@ import {
   RegisterCredentials,
 } from "../../services/serverFiles";
 import { useInvoice } from "../../contexts/InvoiceContext";
+import { cleanServerFilename } from "../../utils/helper";
 
 const Files: React.FC<{
   store: Local;
@@ -96,6 +97,9 @@ const Files: React.FC<{
   const [isSavingAllToServer, setIsSavingAllToServer] = useState(false);
   const [saveAllProgress, setSaveAllProgress] = useState("");
   const [saveAllCount, setSaveAllCount] = useState({ current: 0, total: 0 });
+  const [isMovingAllToLocal, setIsMovingAllToLocal] = useState(false);
+  const [moveAllProgress, setMoveAllProgress] = useState("");
+  const [moveAllCount, setMoveAllCount] = useState({ current: 0, total: 0 });
 
   // Auth state
   const [loginCredentials, setLoginCredentials] = useState<LoginCredentials>({
@@ -584,6 +588,143 @@ const Files: React.FC<{
     }
   };
 
+  // Move all server files to local storage
+  const handleMoveAllToLocal = async () => {
+    if (!serverFilesService.isAuthenticated()) {
+      setToastMessage("Please login to access server files");
+      setShowToast(true);
+      return;
+    }
+
+    try {
+      setIsMovingAllToLocal(true);
+      setMoveAllProgress("Preparing to move all files...");
+
+      // Get all server files - filter only invoice files (those starting with "server_")
+      const invoiceFiles = serverFiles.filter((file) =>
+        file.filename.startsWith("server_")
+      );
+
+      if (invoiceFiles.length === 0) {
+        setToastMessage("No invoice files found on server to move");
+        setShowToast(true);
+        return;
+      }
+
+      setMoveAllCount({ current: 0, total: invoiceFiles.length });
+      setMoveAllProgress(`Moving 0 of ${invoiceFiles.length} files...`);
+
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+
+      for (let i = 0; i < invoiceFiles.length; i++) {
+        const file = invoiceFiles[i];
+        setMoveAllCount({ current: i + 1, total: invoiceFiles.length });
+        setMoveAllProgress(
+          `Moving ${i + 1} of ${invoiceFiles.length} files: ${file.filename}`
+        );
+
+        try {
+          // Download the file from server
+          const blob = await serverFilesService.downloadFile(file.id);
+          const text = await blob.text();
+          const fileData = JSON.parse(text);
+
+          // Check if this is a valid server invoice file
+          if (
+            fileData.content &&
+            fileData.fileName &&
+            fileData.billType !== undefined
+          ) {
+            // Remove the "server_" prefix from the filename
+            const localFileName = fileData.fileName.replace("server_", "");
+
+            // Validate the filename
+            if (!localFileName || localFileName.trim() === "") {
+              errors.push(`${file.filename} (invalid filename)`);
+              errorCount++;
+              continue;
+            }
+
+            // Check if file already exists locally
+            const fileExists = await props.store._checkKey(localFileName);
+            if (fileExists) {
+              errors.push(`${localFileName} (already exists locally)`);
+              errorCount++;
+              continue;
+            }
+
+            // The content from server is raw content, encode it for local storage
+            const encodedContent = encodeURIComponent(fileData.content);
+
+            // Create a local file
+            const localFile = new LocalFile(
+              new Date().toString(),
+              new Date().toString(),
+              encodedContent,
+              localFileName,
+              fileData.billType,
+              false // isEncrypted = false for server files
+            );
+
+            // Save to local storage
+            await props.store._saveFile(localFile);
+            successCount++;
+            console.log(
+              `Successfully moved ${file.filename} to local storage as ${localFileName}`
+            );
+          } else {
+            errors.push(`${file.filename} (invalid file format)`);
+            errorCount++;
+            continue;
+          }
+        } catch (error) {
+          errorCount++;
+          errors.push(
+            `${file.filename} (${
+              error instanceof Error ? error.message : "unknown error"
+            })`
+          );
+          console.error(
+            `Error moving ${file.filename} to local storage:`,
+            error
+          );
+        }
+
+        // Small delay to prevent overwhelming the system
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+
+      // Show completion message
+      let message = `Move complete: ${successCount} files moved successfully`;
+      if (errorCount > 0) {
+        message += `, ${errorCount} failed`;
+        if (errors.length <= 3) {
+          message += `\nFailed files: ${errors.join(", ")}`;
+        } else {
+          message += `\nFirst 3 failed files: ${errors
+            .slice(0, 3)
+            .join(", ")}... and ${errors.length - 3} more`;
+        }
+      }
+
+      setToastMessage(message);
+      setShowToast(true);
+
+      // Refresh the file list to show the new local files
+      await renderFileList();
+    } catch (error) {
+      console.error("Error in move all to local:", error);
+      setToastMessage("Failed to move files to local storage");
+      setShowToast(true);
+    } finally {
+      setIsMovingAllToLocal(false);
+      setMoveAllProgress("");
+      setMoveAllCount({ current: 0, total: 0 });
+    }
+  };
+
   // Render file list
   const renderFileList = async () => {
     let content;
@@ -870,14 +1011,17 @@ const Files: React.FC<{
                               className="file-icon server-icon"
                             />
                             <IonLabel className="mobile-file-label">
-                              <h3>{file.filename}</h3>
+                              <h3>
+                                {file.filename.startsWith("server_")
+                                  ? cleanServerFilename(file.filename)
+                                  : file.filename}
+                              </h3>
                               <p>
                                 Server file • {_formatDate(file.created_at)}
                               </p>
                               <p>
                                 Size: {(file.file_size / 1024).toFixed(2)} KB
-                                {file.filename.startsWith("server_") &&
-                                  " • 📄 Invoice File"}
+                                {file.filename.startsWith("server_")}
                               </p>
                             </IonLabel>
                             <IonBadge
@@ -1039,11 +1183,41 @@ const Files: React.FC<{
                 padding: "0 16px 8px 16px",
                 display: "flex",
                 gap: "8px",
+                alignItems: "center",
+                flexWrap: "wrap",
               }}
             >
               <IonButton size="small" fill="outline" onClick={handleLogout}>
                 Logout
               </IonButton>
+              <IonButton
+                size="small"
+                fill="solid"
+                color="secondary"
+                onClick={handleMoveAllToLocal}
+                disabled={isMovingAllToLocal}
+              >
+                <IonIcon icon={download} slot="start" />
+                {isMovingAllToLocal ? "Moving..." : "Move All to Local"}
+              </IonButton>
+              {isMovingAllToLocal && (
+                <div
+                  style={{
+                    fontSize: "12px",
+                    color: "var(--ion-color-medium)",
+                    width: "100%",
+                    marginTop: "4px",
+                  }}
+                >
+                  {moveAllProgress}
+                  {moveAllCount.total > 0 && (
+                    <span>
+                      {" "}
+                      ({moveAllCount.current}/{moveAllCount.total})
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1162,12 +1336,12 @@ const Files: React.FC<{
           { text: "No", role: "cancel" },
           {
             text: "Yes",
-            handler: () => {
+            handler: async () => {
               if (currentKey) {
-                props.store._deleteFile(currentKey);
+                await props.store._deleteFile(currentKey);
                 loadDefault();
                 setCurrentKey(null);
-                renderFileList();
+                await renderFileList();
               }
             },
           },
