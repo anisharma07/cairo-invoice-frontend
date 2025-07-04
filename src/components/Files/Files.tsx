@@ -41,6 +41,7 @@ import {
   personAdd,
   download,
   folderOpen,
+  cloudUpload,
 } from "ionicons/icons";
 import { useAccount } from "@starknet-react/core";
 import { useGetUserFiles } from "../../hooks/useContractRead";
@@ -61,7 +62,8 @@ const Files: React.FC<{
   updateSelectedFile: Function;
   updateBillType: Function;
 }> = (props) => {
-  const { billType, store, updateSelectedFile, updateBillType } = useInvoice();
+  const { billType, store, updateSelectedFile, updateBillType, selectedFile } =
+    useInvoice();
   const { address } = useAccount();
   const { isDarkMode } = useTheme();
   const history = useHistory();
@@ -91,6 +93,9 @@ const Files: React.FC<{
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [deletingFile, setDeletingFile] = useState<number | null>(null);
+  const [isSavingAllToServer, setIsSavingAllToServer] = useState(false);
+  const [saveAllProgress, setSaveAllProgress] = useState("");
+  const [saveAllCount, setSaveAllCount] = useState({ current: 0, total: 0 });
 
   // Auth state
   const [loginCredentials, setLoginCredentials] = useState<LoginCredentials>({
@@ -447,6 +452,135 @@ const Files: React.FC<{
       console.error("Error moving file to local storage:", error);
       setToastMessage("Failed to move file to local storage");
       setShowToast(true);
+    }
+  };
+
+  // Save all local files to server
+  const handleSaveAllToServer = async () => {
+    if (!serverFilesService.isAuthenticated()) {
+      setToastMessage("Please login to save files to server");
+      setShowToast(true);
+      return;
+    }
+
+    try {
+      setIsSavingAllToServer(true);
+      setSaveAllProgress("Preparing to save all files...");
+
+      // Get all local files
+      const localFiles = await props.store._getAllFiles();
+      const filesArray = Object.keys(localFiles);
+
+      if (filesArray.length === 0) {
+        setToastMessage("No local files to save");
+        setShowToast(true);
+        return;
+      }
+
+      setSaveAllCount({ current: 0, total: filesArray.length });
+      setSaveAllProgress(`Saving 0 of ${filesArray.length} files...`);
+
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+
+      for (let i = 0; i < filesArray.length; i++) {
+        const fileName = filesArray[i];
+        setSaveAllCount({ current: i + 1, total: filesArray.length });
+        setSaveAllProgress(
+          `Saving ${i + 1} of ${filesArray.length} files: ${fileName}`
+        );
+
+        try {
+          // Check if file is encrypted - skip encrypted files for now
+          const isEncrypted = await props.store._isFileEncrypted(fileName);
+          if (isEncrypted) {
+            console.log(`Skipping encrypted file: ${fileName}`);
+            errors.push(`${fileName} (encrypted files not supported)`);
+            errorCount++;
+            continue;
+          }
+
+          // Get file data
+          const fileData = await props.store._getFile(fileName);
+          if (!fileData || !fileData.content) {
+            errors.push(`${fileName} (empty or corrupted)`);
+            errorCount++;
+            continue;
+          }
+
+          let contentToUpload: string;
+
+          // Check if this is the currently selected/active file
+          // If so, get the live content from the spreadsheet instead of stored content
+          if (selectedFile === fileName) {
+            try {
+              // Get current live content from the spreadsheet (like Menu.tsx does)
+              contentToUpload = AppGeneral.getSpreadsheetContent();
+              console.log(`Using live content for active file: ${fileName}`);
+            } catch (error) {
+              console.log(
+                `Failed to get live content for ${fileName}, using stored content`
+              );
+              // Fallback to stored content if getting live content fails
+              contentToUpload = decodeURIComponent(fileData.content);
+            }
+          } else {
+            // For non-active files, use the stored content (decode it first)
+            contentToUpload = decodeURIComponent(fileData.content);
+          }
+
+          // Upload to server using the existing service
+          await serverFilesService.uploadInvoiceData(
+            fileName,
+            contentToUpload,
+            fileData.billType || 0
+          );
+
+          successCount++;
+          console.log(`Successfully saved ${fileName} to server`);
+        } catch (error) {
+          errorCount++;
+          errors.push(
+            `${fileName} (${
+              error instanceof Error ? error.message : "unknown error"
+            })`
+          );
+          console.error(`Error saving ${fileName} to server:`, error);
+        }
+
+        // Small delay to prevent overwhelming the server
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+
+      // Show completion message
+      let message = `Save complete: ${successCount} files saved successfully`;
+      if (errorCount > 0) {
+        message += `, ${errorCount} failed`;
+        if (errors.length <= 3) {
+          message += `\nFailed files: ${errors.join(", ")}`;
+        } else {
+          message += `\nFirst 3 failed files: ${errors
+            .slice(0, 3)
+            .join(", ")}... and ${errors.length - 3} more`;
+        }
+      }
+
+      setToastMessage(message);
+      setShowToast(true);
+
+      // Refresh server files if we're viewing them
+      if (fileSource === "server") {
+        await loadServerFiles();
+      }
+    } catch (error) {
+      console.error("Error in save all to server:", error);
+      setToastMessage("Failed to save files to server");
+      setShowToast(true);
+    } finally {
+      setIsSavingAllToServer(false);
+      setSaveAllProgress("");
+      setSaveAllCount({ current: 0, total: 0 });
     }
   };
 
@@ -850,6 +984,55 @@ const Files: React.FC<{
               debounce={300}
             />
           </div>
+          {fileSource === "local" && serverFilesService.isAuthenticated() && (
+            <div
+              style={{
+                padding: "0 16px 8px 16px",
+                display: "flex",
+                gap: "8px",
+                alignItems: "center",
+              }}
+            >
+              <IonButton
+                size="small"
+                fill="solid"
+                color="primary"
+                onClick={handleSaveAllToServer}
+                disabled={isSavingAllToServer}
+              >
+                <IonIcon icon={cloudUpload} slot="start" />
+                {isSavingAllToServer ? "Saving..." : "Save All to Server"}
+              </IonButton>
+              {isSavingAllToServer && (
+                <div
+                  style={{ fontSize: "12px", color: "var(--ion-color-medium)" }}
+                >
+                  {saveAllProgress}
+                  {saveAllCount.total > 0 && (
+                    <span>
+                      {" "}
+                      ({saveAllCount.current}/{saveAllCount.total})
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          {fileSource === "local" && !serverFilesService.isAuthenticated() && (
+            <div
+              style={{
+                padding: "0 16px 8px 16px",
+                display: "flex",
+                gap: "8px",
+                alignItems: "center",
+              }}
+            >
+              <IonButton size="small" fill="outline" color="medium" disabled>
+                <IonIcon icon={cloudUpload} slot="start" />
+                Save All to Server (Login Required)
+              </IonButton>
+            </div>
+          )}
           {fileSource === "server" && serverFilesService.isAuthenticated() && (
             <div
               style={{
