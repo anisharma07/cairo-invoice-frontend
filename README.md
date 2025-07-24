@@ -107,19 +107,19 @@ npx cap open ios
 
 ## ✨ Features Overview
 
-| #      | Feature                    | Description                                                          | Documentation                                           |
-| ------ | -------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------- |
-| **1**  | **Autosave Functionality** | Automatic saving with configurable intervals and manual save options | [📄 View Details](.github/1.AUTOSAVE_FEATURE.md)        |
-| **2**  | **Dark Mode Theme**        | Complete dark/light theme switching with system preference detection | [📄 View Details](.github/2.DARK_MODE.md)               |
-| **3**  | **Logo Integration**       | Company logo upload, management, and invoice integration             | [📄 View Details](.github/3.ADD_LOGO_FEATURE.md)        |
-| **4**  | **Advanced Cell Styling**  | Rich text formatting, colors, borders, and alignment options         | [📄 View Details](.github/4.SHEET_CELL_STYLING.md)      |
-| **5**  | **Export Functionality**   | PDF, CSV, and multi-sheet export with mobile sharing support         | [📄 View Details](.github/5.CLIENT_EXPORT_FEATURES.md)  |
-| **6**  | **Camera Integration**     | Photo capture for receipts and documentation using device camera     | [📄 View Details](.github/6.CAPACITOR_CAMERA_PLUGIN.md) |
-| **7**  | **App Icons & Splash**     | Professional branding with adaptive icons and splash screens         | [📄 View Details](.github/7.APP_ICONS_SPLASH_SCREEN.md) |
-| **8**  | **Digital Signatures**     | Electronic signature capture and integration into invoices           | [📄 View Details](.github/8.SIGNATURE_PLUGIN.md)        |
-| **9**  | **Storage Management**     | Intelligent quota handling and storage optimization                  | [📄 View Details](.github/9.STORAGE_QUOTA_HANDLING.md)  |
-| **10** | **PWA & Ionic 8 Upgrade**  | Progressive Web App capabilities with latest Ionic framework         | [📄 View Details](.github/10.PWA_IONIC_UPGRADE.md)      |
-| **11** | **Bulk File Operations**   | Save all to server & move all from server with progress tracking     | [📄 View Details](.github/11.BULK_FILE_OPERATIONS.md)   |
+| #      | Feature                    | Description                                                               | Documentation                                           |
+| ------ | -------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------- |
+| **1**  | **Autosave Functionality** | Automatic saving with configurable intervals and manual save options      | [📄 View Details](.github/1.AUTOSAVE_FEATURE.md)        |
+| **2**  | **Dark Mode Theme**        | Complete dark/light theme switching with system preference detection      | [📄 View Details](.github/2.DARK_MODE.md)               |
+| **3**  | **Logo Integration**       | Company logo upload, management, and invoice integration                  | [📄 View Details](.github/3.ADD_LOGO_FEATURE.md)        |
+| **4**  | **Advanced Cell Styling**  | Rich text formatting, colors, borders, and alignment options              | [📄 View Details](.github/4.SHEET_CELL_STYLING.md)      |
+| **5**  | **Export Functionality**   | PDF, CSV, and multi-sheet export with mobile sharing support              | [📄 View Details](.github/5.CLIENT_EXPORT_FEATURES.md)  |
+| **6**  | **Camera Integration**     | Photo capture for receipts and documentation using device camera          | [📄 View Details](.github/6.CAPACITOR_CAMERA_PLUGIN.md) |
+| **7**  | **App Icons & Splash**     | Professional branding with adaptive icons and splash screens              | [📄 View Details](.github/7.APP_ICONS_SPLASH_SCREEN.md) |
+| **8**  | **Digital Signatures**     | Electronic signature capture and integration into invoices                | [📄 View Details](.github/8.SIGNATURE_PLUGIN.md)        |
+| **9**  | **Storage Management**     | Intelligent quota handling and storage optimization                       | [📄 View Details](.github/9.STORAGE_QUOTA_HANDLING.md)  |
+| **10** | **PWA & Ionic 8 Upgrade**  | Progressive Web App capabilities with latest Ionic framework              | [📄 View Details](.github/10.PWA_IONIC_UPGRADE.md)      |
+| **11** | **Bulk File Operations**   | Save all to server & move all from server with progress tracking          | [📄 View Details](.github/11.BULK_FILE_OPERATIONS.md)   |
 | **12** | **Starknet Integration**   | Blockchain file storage with IPFS, token subscriptions, and Web3 features | [📄 View Details](.github/12_STARKNET_INTEGRATION.md)   |
 
 ## 🌐 PWA Features
@@ -181,7 +181,7 @@ npx cap open ios
 ### 💰 Subscription Plans
 
 - **Basic Plan**: 10 files for 100 PPT tokens
-- **Standard Plan**: 50 files for 400 PPT tokens  
+- **Standard Plan**: 50 files for 400 PPT tokens
 - **Premium Plan**: 200 files for 1200 PPT tokens
 
 ## �🚀 Getting Started
