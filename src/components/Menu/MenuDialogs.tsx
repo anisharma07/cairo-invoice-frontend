@@ -12,7 +12,7 @@ interface MenuDialogsProps {
   showAlert8: boolean;
   showAlert9: boolean;
   showAlert10: boolean;
-  showAlert11: boolean;
+  showAlert12: boolean; // For server PDF filename
 
   // Alert setters
   setShowAlert1: (show: boolean) => void;
@@ -24,7 +24,7 @@ interface MenuDialogsProps {
   setShowAlert8: (show: boolean) => void;
   setShowAlert9: (show: boolean) => void;
   setShowAlert10: (show: boolean) => void;
-  setShowAlert11: (show: boolean) => void;
+  setShowAlert12: (show: boolean) => void;
 
   // Toast states
   showToast1: boolean;
@@ -36,31 +36,28 @@ interface MenuDialogsProps {
   isGeneratingPDF: boolean;
   isGeneratingCSV: boolean;
   isExportingAllPDF: boolean;
+  isGeneratingServerPDF: boolean;
   setIsGeneratingPDF: (loading: boolean) => void;
   setIsGeneratingCSV: (loading: boolean) => void;
   setIsExportingAllPDF: (loading: boolean) => void;
+  setIsGeneratingServerPDF: (loading: boolean) => void;
 
   // Progress messages
   pdfProgress: string;
   exportAllProgress: string;
+  serverPdfProgress: string;
 
   // Data for dialogs
   selectedFile: string;
   filePassword: string;
 
   // Handlers
-  doSaveAs: (filename: string) => void;
   doGeneratePDF: (filename: string) => void;
   doGenerateCSV: (filename: string) => void;
   doExportAllSheetsAsPDF: (filename: string) => void;
-  doSaveAsWithPassword: (filename: string, password: string) => void;
-  doSaveToServer: (filename: string) => void;
+  doGenerateServerPDF: (filename: string) => void;
   generateInvoiceFilename: () => string;
   selectInputText: (inputElement: HTMLIonInputElement) => void;
-
-  // Alert control states
-  showAlert5: boolean;
-  showAlert11Open: boolean;
 }
 
 const MenuDialogs: React.FC<MenuDialogsProps> = ({
@@ -74,7 +71,7 @@ const MenuDialogs: React.FC<MenuDialogsProps> = ({
   showAlert8,
   showAlert9,
   showAlert10,
-  showAlert11,
+  showAlert12,
 
   // Alert setters
   setShowAlert1,
@@ -86,7 +83,7 @@ const MenuDialogs: React.FC<MenuDialogsProps> = ({
   setShowAlert8,
   setShowAlert9,
   setShowAlert10,
-  setShowAlert11,
+  setShowAlert12,
 
   // Toast states
   showToast1,
@@ -98,31 +95,28 @@ const MenuDialogs: React.FC<MenuDialogsProps> = ({
   isGeneratingPDF,
   isGeneratingCSV,
   isExportingAllPDF,
+  isGeneratingServerPDF,
   setIsGeneratingPDF,
   setIsGeneratingCSV,
   setIsExportingAllPDF,
+  setIsGeneratingServerPDF,
 
   // Progress messages
   pdfProgress,
   exportAllProgress,
+  serverPdfProgress,
 
   // Data for dialogs
   selectedFile,
   filePassword,
 
   // Handlers
-  doSaveAs,
   doGeneratePDF,
   doGenerateCSV,
   doExportAllSheetsAsPDF,
-  doSaveAsWithPassword,
-  doSaveToServer,
+  doGenerateServerPDF,
   generateInvoiceFilename,
   selectInputText,
-
-  // Alert control states
-  showAlert5,
-  showAlert11Open,
 }) => {
   return (
     <React.Fragment>
@@ -146,39 +140,6 @@ const MenuDialogs: React.FC<MenuDialogsProps> = ({
         header="Save"
         message={"File " + selectedFile + " updated successfully"}
         buttons={["Ok"]}
-      />
-
-      {/* Alert 3 - Save As */}
-      <IonAlert
-        animated
-        isOpen={showAlert3}
-        onDidDismiss={() => setShowAlert3(false)}
-        header="Save As"
-        inputs={[
-          {
-            name: "filename",
-            type: "text",
-            placeholder: "Enter filename",
-            value: generateInvoiceFilename(),
-          },
-        ]}
-        buttons={[
-          {
-            text: "Ok",
-            handler: (alertData) => {
-              doSaveAs(alertData.filename);
-            },
-          },
-        ]}
-        onDidPresent={(ev) => {
-          // Select the text in the input field when dialog opens
-          const inputElement = ev.target?.querySelector(
-            "ion-input"
-          ) as HTMLIonInputElement;
-          if (inputElement) {
-            setTimeout(() => selectInputText(inputElement), 100);
-          }
-        }}
       />
 
       {/* Alert 4 - File saved successfully */}
@@ -283,58 +244,6 @@ const MenuDialogs: React.FC<MenuDialogsProps> = ({
         ]}
       />
 
-      {/* Alert 9 - Password Protection */}
-      <IonAlert
-        animated
-        isOpen={showAlert9}
-        onDidDismiss={() => setShowAlert9(false)}
-        header="Password Protection"
-        message="Enter password to protect the file"
-        inputs={[
-          {
-            name: "password",
-            type: "password",
-            placeholder: "Enter password",
-          },
-          {
-            name: "filename",
-            type: "text",
-            placeholder: "Enter filename",
-            value:
-              selectedFile === "default"
-                ? generateInvoiceFilename()
-                : selectedFile,
-          },
-        ]}
-        buttons={[
-          {
-            text: "Cancel",
-            role: "cancel",
-          },
-          {
-            text: "Save",
-            handler: (alertData) => {
-              if (alertData.password && alertData.filename) {
-                doSaveAsWithPassword(alertData.filename, alertData.password);
-              } else {
-                setToastMessage("Please enter both filename and password");
-                setShowToast1(true);
-                return false; // Prevent dialog from closing
-              }
-            },
-          },
-        ]}
-        onDidPresent={(ev) => {
-          // Select the text in the filename input field when dialog opens
-          const inputElements = ev.target?.querySelectorAll(
-            "ion-input"
-          ) as NodeListOf<HTMLIonInputElement>;
-          if (inputElements && inputElements.length > 1) {
-            setTimeout(() => selectInputText(inputElements[1]), 100); // Select the filename input (second input)
-          }
-        }}
-      />
-
       {/* Alert 10 - Password Input */}
       <IonAlert
         animated
@@ -369,21 +278,18 @@ const MenuDialogs: React.FC<MenuDialogsProps> = ({
         ]}
       />
 
-      {/* Alert 11 - Save to Server */}
+      {/* Alert 12 - Export as PDF via Server */}
       <IonAlert
         animated
-        isOpen={showAlert11}
-        onDidDismiss={() => setShowAlert11(false)}
-        header="Save to Server"
+        isOpen={showAlert12}
+        onDidDismiss={() => setShowAlert12(false)}
+        header="Export as PDF via Server"
         inputs={[
           {
-            name: "serverFilename",
+            name: "serverPdfFilename",
             type: "text",
-            placeholder: "Enter filename",
-            value:
-              selectedFile === "default"
-                ? generateInvoiceFilename()
-                : selectedFile,
+            placeholder: "Enter PDF filename",
+            value: selectedFile || "invoice",
           },
         ]}
         buttons={[
@@ -392,28 +298,16 @@ const MenuDialogs: React.FC<MenuDialogsProps> = ({
             role: "cancel",
           },
           {
-            text: "Save",
+            text: "Generate",
             handler: (alertData) => {
-              const filename = alertData.serverFilename?.trim();
-              if (filename) {
-                doSaveToServer(filename);
-              } else {
-                setToastMessage("Please enter a filename");
-                setShowToast1(true);
-                return false; // Prevent dialog from closing
-              }
+              const filename =
+                alertData.serverPdfFilename?.trim() ||
+                selectedFile ||
+                "invoice";
+              doGenerateServerPDF(filename);
             },
           },
         ]}
-        onDidPresent={(ev) => {
-          // Select the text in the input field when dialog opens
-          const inputElement = ev.target?.querySelector(
-            "ion-input"
-          ) as HTMLIonInputElement;
-          if (inputElement) {
-            setTimeout(() => selectInputText(inputElement), 100);
-          }
-        }}
       />
 
       {/* Toast */}
@@ -435,10 +329,7 @@ const MenuDialogs: React.FC<MenuDialogsProps> = ({
             !toastMessage.includes("IPFS") &&
             !toastMessage.includes("Server") &&
             !toastMessage.includes("PDF") &&
-            !toastMessage.includes("CSV") &&
-            !showAlert11Open && // Don't show if server save dialog is open
-            !showAlert11 && // Don't show if server save dialog was just closed
-            !showAlert5 // Don't show if blockchain save dialog is open
+            !toastMessage.includes("CSV")
           ) {
             setShowAlert3(true);
           }
@@ -467,6 +358,13 @@ const MenuDialogs: React.FC<MenuDialogsProps> = ({
         isOpen={isExportingAllPDF}
         message={exportAllProgress || "Exporting all sheets as PDF..."}
         onDidDismiss={() => setIsExportingAllPDF(false)}
+      />
+
+      {/* Loading - Server PDF Generation */}
+      <IonLoading
+        isOpen={isGeneratingServerPDF}
+        message={serverPdfProgress || "Converting HTML to PDF via server..."}
+        onDidDismiss={() => setIsGeneratingServerPDF(false)}
       />
     </React.Fragment>
   );
