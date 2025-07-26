@@ -7,8 +7,8 @@ on:
 jobs:
   claude-organize:
     runs-on: ubuntu-latest
-    # Only run if the comment contains "@claude organize"
-    if: contains(github.event.comment.body, '@claude organize')
+    # Only run if the comment contains "/claude-organize"
+    if: contains(github.event.comment.body, '/claude-organize')
     permissions:
       contents: read
       issues: write
@@ -55,11 +55,11 @@ jobs:
           def organize_with_claude(comment_text):
               client = get_bedrock_client()
               
-              # Remove the @claude organize trigger from the comment
-              cleaned_comment = re.sub(r'@claude\s+organize\s*', '', comment_text, flags=re.IGNORECASE).strip()
+              # Remove the /claude-organize trigger from the comment
+              cleaned_comment = re.sub(r'/claude-organize\s*', '', comment_text, flags=re.IGNORECASE).strip()
               
               if not cleaned_comment:
-                  return "No content to organize after removing the @claude organize command."
+                  return "No content to organize after removing the /claude-organize command."
               
               prompt = f"""
           You are an expert at organizing and structuring text content. Please take the following comment and reorganize it into a clear, well-structured format with proper bullet points and organization.
