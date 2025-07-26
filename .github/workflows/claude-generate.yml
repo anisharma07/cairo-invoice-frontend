@@ -1,39 +1,47 @@
-name: Claude AI Coding Agent
+name: Claude AI Code Generation
 
 on:
   issues:
-    types: [labeled]
+    types: [opened, edited]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      task_description:
+        description: "Describe the code generation task"
+        required: true
+        type: string
+      target_branch:
+        description: "Target branch for the generated code"
+        required: false
+        default: "claude-generated"
+        type: string
 
 jobs:
-  check-trigger:
-    runs-on: ubuntu-latest
-    if: contains(github.event.label.name, 'claude-code-generate')
-    outputs:
-      should_generate: ${{ steps.check.outputs.result }}
-      issue_number: ${{ github.event.issue.number }}
-    steps:
-      - name: Check if should generate
-        id: check
-        run: |
-          echo "result=true" >> $GITHUB_OUTPUT
-          echo "Issue #${{ github.event.issue.number }} labeled with claude-code-generate"
-
   generate-code:
     runs-on: ubuntu-latest
-    needs: check-trigger
-    if: needs.check-trigger.outputs.should_generate == 'true'
+    if: |
+      (github.event_name == 'issues' && contains(github.event.issue.labels.*.name, 'claude-generate')) ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '/claude generate')) ||
+      (github.event_name == 'workflow_dispatch')
+
     permissions:
       contents: write
       pull-requests: write
       issues: write
-      discussions: read
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -46,752 +54,275 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
       - name: Install dependencies
         run: |
-          npm install --no-optional
-          pip install boto3 requests gitpython PyGithub
+          npm install
+          pip install boto3 requests botocore
 
-      - name: Create claude-generate directory
+      - name: Extract task description
+        id: task
         run: |
-          mkdir -p .github/claude-generate
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "description=${{ github.event.inputs.task_description }}" >> $GITHUB_OUTPUT
+            echo "branch=${{ github.event.inputs.target_branch }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "issues" ]; then
+            # Extract task from issue body
+            echo "description<<EOF" >> $GITHUB_OUTPUT
+            echo "${{ github.event.issue.body }}" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            echo "branch=claude-generated-issue-${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
+          else
+            # Extract task from comment
+            COMMENT_BODY="${{ github.event.comment.body }}"
+            TASK_DESC=$(echo "$COMMENT_BODY" | sed -n 's|^/claude generate \(.*\)|\1|p')
+            echo "description=$TASK_DESC" >> $GITHUB_OUTPUT
+            echo "branch=claude-generated-comment-${{ github.event.comment.id }}" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Extract issue context and generate code
+      - name: Analyze codebase structure
+        run: |
+          find . -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" \) \
+            -not -path "./node_modules/*" \
+            -not -path "./.git/*" > codebase_files.txt
+
+          echo "Project structure:" > project_context.txt
+          tree -I 'node_modules|.git' -L 3 >> project_context.txt || ls -la >> project_context.txt
+
+          echo "Package.json content:" >> project_context.txt
+          cat package.json >> project_context.txt
+
+      - name: Generate code with Claude
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AWS_BEDROCK_MODEL_ID: ${{ secrets.AWS_BEDROCK_MODEL_ID }}
-          ISSUE_NUMBER: ${{ needs.check-trigger.outputs.issue_number }}
-          REPO_OWNER: ${{ github.repository_owner }}
-          REPO_NAME: ${{ github.event.repository.name }}
+          TASK_DESCRIPTION: ${{ steps.task.outputs.description }}
+          TARGET_BRANCH: ${{ steps.task.outputs.branch }}
         run: |
-          cat << 'EOF' > claude_coding_agent.py
+          cat << 'EOF' > claude_generator.py
           import boto3
           import json
           import os
           import requests
           import subprocess
           import tempfile
-          import re
-          import time
-          import random
-          from datetime import datetime
-          from github import Github
-          import git
+          from botocore.config import Config
 
-          class ClaudeCodingAgent:
-              def __init__(self):
-                  self.github_token = os.environ['GITHUB_TOKEN']
-                  self.bedrock_client = boto3.client('bedrock-runtime', region_name=os.environ['AWS_DEFAULT_REGION'])
-                  self.model_id = os.environ.get('AWS_BEDROCK_MODEL_ID', 'us.anthropic.claude-sonnet-4-20250514-v1:0')
-                  self.issue_number = os.environ['ISSUE_NUMBER']
-                  self.repo_owner = os.environ['REPO_OWNER']
-                  self.repo_name = os.environ['REPO_NAME']
-                  self.branch_name = f"claude-code-issue-{self.issue_number}"
-                  self.github_client = Github(self.github_token)
-                  self.repo = self.github_client.get_repo(f"{self.repo_owner}/{self.repo_name}")
 
-              def get_issue_context(self):
-                  """Extract comprehensive context from the issue"""
-                  try:
-                      issue = self.repo.get_issue(int(self.issue_number))
-                      
-                      context = {
-                          'title': issue.title,
-                          'body': issue.body or '',
-                          'comments': [],
-                          'labels': [label.name for label in issue.labels],
-                          'assignees': [assignee.login for assignee in issue.assignees],
-                          'referenced_files': []
+          def get_bedrock_client():
+            config = Config(
+                read_timeout=120,  # Increase from default (~60s)
+                connect_timeout=10,  # Optional, you can tweak this too
+                retries={
+                    'max_attempts': 3,
+                    'mode': 'standard'
+                }
+            )
+            return boto3.client('bedrock-runtime', region_name=os.environ['AWS_DEFAULT_REGION'], config=config)
+
+          def read_file_safely(filepath, max_lines=100):
+              """Read file content safely, limiting lines for context"""
+              try:
+                  with open(filepath, 'r', encoding='utf-8') as f:
+                      lines = f.readlines()
+                      if len(lines) > max_lines:
+                          return ''.join(lines[:max_lines]) + f'\n... (truncated, {len(lines)-max_lines} more lines)'
+                      return ''.join(lines)
+              except Exception as e:
+                  return f"Error reading file: {str(e)}"
+
+          def analyze_codebase():
+              """Analyze the current codebase structure"""
+              context = ""
+              
+              # Read project context
+              if os.path.exists('project_context.txt'):
+                  context += read_file_safely('project_context.txt')
+              
+              # Read key configuration files
+              key_files = ['package.json', 'tsconfig.json', 'vite.config.ts', 'capacitor.config.ts']
+              for file in key_files:
+                  if os.path.exists(file):
+                      context += f"\n\n=== {file} ===\n"
+                      context += read_file_safely(file, 50)
+              
+              # Sample some source files to understand patterns
+              if os.path.exists('codebase_files.txt'):
+                  with open('codebase_files.txt', 'r') as f:
+                      files = [line.strip() for line in f.readlines()[:10]]  # First 10 files
+                  
+                  for file in files:
+                      if os.path.exists(file):
+                          context += f"\n\n=== {file} ===\n"
+                          context += read_file_safely(file, 30)
+              
+              return context
+
+          def generate_code_with_claude(task_description, codebase_context):
+              client = get_bedrock_client()
+              
+              prompt = f"""
+          You are an expert software developer working on an Ionic React TypeScript application for government billing/invoicing.
+
+          TASK: {task_description}
+
+          CURRENT CODEBASE CONTEXT:
+          {codebase_context}
+
+          Please generate the necessary code changes to implement the requested feature. Your response should include:
+
+          1. **FILES_TO_CREATE**: List any new files that need to be created with their full paths
+          2. **FILES_TO_MODIFY**: List any existing files that need to be modified
+          3. **CODE_CHANGES**: Provide the actual code for new files or specific changes for existing files
+          4. **INSTRUCTIONS**: Any additional setup or configuration steps needed
+
+          Follow these guidelines:
+          - Use TypeScript and React hooks
+          - Follow Ionic React patterns and components
+          - Maintain consistency with existing code style
+          - Include proper error handling
+          - Add appropriate TypeScript types
+          - Use existing utilities and patterns from the codebase
+          - Ensure mobile-first responsive design
+
+          Format your response clearly with sections for each file change.
+          """
+
+              body = {
+                  "anthropic_version": "bedrock-2023-05-31",
+                  "max_tokens": 8000,
+                  "messages": [
+                      {
+                          "role": "user",
+                          "content": prompt
                       }
-                      
-                      # Get comments
-                      for comment in issue.get_comments():
-                          context['comments'].append({
-                              'author': comment.user.login,
-                              'body': comment.body,
-                              'created_at': comment.created_at.isoformat()
-                          })
-                      
-                      # Extract file references from issue body and comments
-                      all_text = context['body'] + ' ' + ' '.join([c['body'] for c in context['comments']])
-                      file_patterns = [
-                          r'`([^`]+\.(ts|tsx|js|jsx|css|html|json|md))`',
-                          r'```[\w]*\n[^`]*([^\n]+\.(ts|tsx|js|jsx|css|html|json|md))[^`]*```',
-                          r'(?:file|path|src/)([^\s]+\.(ts|tsx|js|jsx|css|html|json|md))'
-                      ]
-                      
-                      for pattern in file_patterns:
-                          matches = re.findall(pattern, all_text, re.IGNORECASE)
-                          for match in matches:
-                              file_path = match[0] if isinstance(match, tuple) else match
-                              if file_path not in context['referenced_files']:
-                                  context['referenced_files'].append(file_path)
-                      
-                      return context
-                  except Exception as e:
-                      print(f"Error getting issue context: {e}")
-                      return {}
+                  ]
+              }
+              
+              response = client.invoke_model(
+                  body=json.dumps(body),
+                  modelId=os.environ.get('AWS_BEDROCK_MODEL_ID', 'anthropic.claude-3-sonnet-20240229-v1:0'),
+                  accept='application/json',
+                  contentType='application/json'
+              )
+              
+              response_body = json.loads(response.get('body').read())
+              return response_body['content'][0]['text']
 
-              def analyze_codebase_structure(self):
-                  """Analyze the current codebase for context"""
-                  try:
-                      structure = {
-                          'project_files': {},
-                          'directory_structure': '',
-                          'package_info': {},
-                          'key_files': {}
-                      }
-                      
-                      # Get directory structure
-                      try:
-                          result = subprocess.run(['find', '.', '-type', 'f', '-name', '*.ts', '-o', '-name', '*.tsx', '-o', '-name', '*.js', '-o', '-name', '*.jsx', '-o', '-name', '*.json', '-o', '-name', '*.md'], 
-                                                capture_output=True, text=True, check=True)
-                          structure['project_files'] = [f.strip() for f in result.stdout.split('\n') if f.strip() and not f.startswith('./node_modules') and not f.startswith('./.git')]
-                      except:
-                          pass
-                      
-                      # Read key configuration files
-                      key_files = ['package.json', 'tsconfig.json', 'vite.config.ts', 'capacitor.config.ts', 'ionic.config.json']
-                      for file in key_files:
-                          if os.path.exists(file):
-                              try:
-                                  with open(file, 'r', encoding='utf-8') as f:
-                                      structure['key_files'][file] = f.read()[:2000]  # Limit content
-                              except:
-                                  structure['key_files'][file] = "Error reading file"
-                      
-                      # Get directory tree
-                      try:
-                          result = subprocess.run(['tree', '-I', 'node_modules|.git|dist|build', '-L', '3'], 
-                                                capture_output=True, text=True)
-                          if result.returncode == 0:
-                              structure['directory_structure'] = result.stdout
-                          else:
-                              # Fallback to ls
-                              result = subprocess.run(['find', '.', '-type', 'd', '-not', '-path', './node_modules*', '-not', '-path', './.git*'], 
-                                                    capture_output=True, text=True)
-                              structure['directory_structure'] = result.stdout
-                      except:
-                          structure['directory_structure'] = "Could not generate directory structure"
-                      
-                      return structure
-                  except Exception as e:
-                      print(f"Error analyzing codebase: {e}")
-                      return {}
+          def create_branch_and_commit(branch_name, generated_content):
+              """Create a new branch and commit the generated code"""
+              try:
 
-              def read_referenced_files(self, referenced_files, codebase_structure):
-                  """Read content of referenced files for context"""
-                  file_contents = {}
-                  
-                  for file_path in referenced_files:
-                      # Try different path variations
-                      possible_paths = [
-                          file_path,
-                          file_path.lstrip('./'),
-                          f"src/{file_path}",
-                          f"./{file_path}"
-                      ]
-                      
-                      for path in possible_paths:
-                          if os.path.exists(path):
-                              try:
-                                  with open(path, 'r', encoding='utf-8') as f:
-                                      content = f.read()
-                                      file_contents[file_path] = {
-                                          'actual_path': path,
-                                          'content': content[:5000]  # Limit content size
-                                      }
-                                  break
-                              except Exception as e:
-                                  file_contents[file_path] = {
-                                      'actual_path': path,
-                                      'content': f"Error reading file: {e}"
-                                  }
-                          
-                      # Also check if file exists in project files list
-                      if file_path not in file_contents:
-                          for project_file in codebase_structure.get('project_files', []):
-                              if project_file.endswith(file_path) or file_path in project_file:
-                                  try:
-                                      with open(project_file.lstrip('./'), 'r', encoding='utf-8') as f:
-                                          content = f.read()
-                                          file_contents[file_path] = {
-                                              'actual_path': project_file,
-                                              'content': content[:5000]
-                                          }
-                                      break
-                                  except:
-                                      pass
-                  
-                  return file_contents
+                  subprocess.run(['git', 'config', 'user.name', 'Claude Bot'], check=True)
+                  subprocess.run(['git', 'config', 'user.email', 'claude-bot@example.com'], check=True)
 
-              def generate_code_with_claude(self, issue_context, codebase_structure, referenced_files_content):
-                  """Generate code changes using Claude with retry logic"""
+                  # Create and checkout new branch
+                  subprocess.run(['git', 'checkout', '-b', branch_name], check=True)
                   
-                  # Build comprehensive context
-                  context_prompt = f"""
-          You are an expert software developer and coding agent working on an Ionic React TypeScript application for government billing/invoicing. You have access to the complete repository context and need to implement the requested changes directly in the codebase.
+                  # Create a summary file with the generated content
+                  with open('CLAUDE_GENERATED.md', 'w') as f:
+                      f.write(f"# Claude Generated Code\n\n")
+                      f.write(f"**Task**: {os.environ['TASK_DESCRIPTION']}\n\n")
+                      f.write(f"**Generated on**: {subprocess.check_output(['date']).decode().strip()}\n\n")
+                      f.write("## Generated Content\n\n")
+                      f.write("```\n")
+                      f.write(generated_content)
+                      f.write("\n```\n")
+                  
+                  # Stage and commit changes
+                  subprocess.run(['git', 'add', '.'], check=True)
+                  subprocess.run(['git', 'commit', '-m', f'Add Claude generated code\n\nTask: {os.environ["TASK_DESCRIPTION"]}\n\nGenerated by Claude AI via Amazon Bedrock'], check=True)
+                  
+                  # Push branch
+                  subprocess.run(['git', 'push', '-u', 'origin', branch_name], check=True)
+                  
+                  return True
+              except subprocess.CalledProcessError as e:
+                  print(f"Git operation failed: {e}")
+                  return False
 
-          ## ISSUE CONTEXT
-          **Title:** {issue_context.get('title', '')}
-          **Description:** {issue_context.get('body', '')}
-          **Labels:** {', '.join(issue_context.get('labels', []))}
+          def create_pull_request(branch_name, task_description, generated_content):
+              """Create a pull request with the generated code"""
+              github_token = os.environ['GITHUB_TOKEN']
+              repo = os.environ['GITHUB_REPOSITORY']
+              
+              headers = {
+                  'Authorization': f'token {github_token}',
+                  'Accept': 'application/vnd.github.v3+json'
+              }
+              
+              pr_body = f"""## 🤖 Claude AI Generated Code
 
-          ## COMMENTS AND DISCUSSIONS
-          """
-                  
-                  for comment in issue_context.get('comments', []):
-                      context_prompt += f"\n**{comment['author']}:** {comment['body']}\n"
-                  
-                  context_prompt += f"""
-          ## CURRENT CODEBASE STRUCTURE
-          **Directory Structure:**
+          **Task Description:** {task_description}
+
+          This pull request contains code generated by Claude AI via Amazon Bedrock based on the requested feature.
+
+          ## Generated Changes
+
           ```
-          {codebase_structure.get('directory_structure', '')}
+          {generated_content[:2000]}{'...' if len(generated_content) > 2000 else ''}
           ```
 
-          **Project Files:** {len(codebase_structure.get('project_files', []))} files found
+          ## Review Notes
 
-          ## KEY CONFIGURATION FILES
+          - Please review the generated code carefully
+          - Test the functionality before merging
+          - Make any necessary adjustments for your specific requirements
+          - Check for integration with existing codebase
+
+          ---
+          *This PR was created automatically by Claude AI*
           """
-                  
-                  for file, content in codebase_structure.get('key_files', {}).items():
-                      context_prompt += f"\n**{file}:**\n```json\n{content}\n```\n"
-                  
-                  if referenced_files_content:
-                      context_prompt += "\n## REFERENCED FILES\n"
-                      for file_path, file_info in referenced_files_content.items():
-                          context_prompt += f"\n**{file_path}** (at {file_info['actual_path']}):\n```\n{file_info['content']}\n```\n"
-                  
-                  context_prompt += """
-          ## INSTRUCTIONS
-          Please analyze the issue requirements and generate the necessary code changes. You should:
-
-          1. **ANALYZE** the request and understand what needs to be implemented
-          2. **IDENTIFY** which files need to be created, modified, or deleted
-          3. **GENERATE** the complete, working code for each file
-          4. **ENSURE** consistency with existing code patterns and architecture
-          5. **FOLLOW** TypeScript, React, and Ionic best practices
-          6. **INCLUDE** proper error handling and type safety
-
-          ## RESPONSE FORMAT
-          Please structure your response as follows:
-
-          ### ANALYSIS
-          Brief analysis of what needs to be implemented
-
-          ### FILES TO CREATE
-          List new files that need to be created (if any)
-
-          ### FILES TO MODIFY  
-          List existing files that need changes (if any)
-
-          ### CODE CHANGES
-          For each file (new or modified), provide the complete file content in this format:
-
-          #### FILE: path/to/file.tsx
-          ```typescript
-          // Complete file content here
-          ```
-
-          #### EXPLANATION: path/to/file.tsx
-          Brief explanation of changes made to this file
-
-          ### ADDITIONAL NOTES
-          Any additional setup, configuration, or documentation needed
-
-          Make sure to provide complete, functional code that can be directly used in the repository.
-          """
-                  
-                  # Retry configuration
-                  max_retries = 100
-                  base_delay = 1
-                  max_delay = 60
-                  
-                  print("🤖 Preparing to send prompt to Claude AI...")
-                  print(f"📝 Prompt length: {len(context_prompt)} characters")
-                  print(f"🎯 Using model: {self.model_id}")
-                  print("=" * 80)
-                  
-                  for attempt in range(max_retries):
-                      try:
-                          print(f"🚀 Attempt {attempt + 1}/{max_retries} - Sending request to Claude AI...")
-                          
-                          body = {
-                              "anthropic_version": "bedrock-2023-05-31",
-                              "max_tokens": 12000,
-                              "messages": [
-                                  {
-                                      "role": "user",
-                                      "content": context_prompt
-                                  }
-                              ]
-                          }
-                          
-                          print("⏳ Waiting for Claude AI response...")
-                          start_time = time.time()
-                          
-                          response = self.bedrock_client.invoke_model(
-                              body=json.dumps(body),
-                              modelId=self.model_id,
-                              accept='application/json',
-                              contentType='application/json'
-                          )
-                          
-                          response_body = json.loads(response.get('body').read())
-                          generated_text = response_body['content'][0]['text']
-                          
-                          end_time = time.time()
-                          generation_time = end_time - start_time
-                          
-                          print(f"✅ Successfully received Claude AI response in {generation_time:.2f} seconds!")
-                          print(f"📊 Response length: {len(generated_text)} characters")
-                          print("=" * 80)
-                          print("🧠 CLAUDE AI RESPONSE:")
-                          print("=" * 80)
-                          
-                          # Display the first 2000 characters of the response for preview
-                          preview_text = generated_text[:2000] + "..." if len(generated_text) > 2000 else generated_text
-                          print(preview_text)
-                          
-                          if len(generated_text) > 2000:
-                              print("=" * 80)
-                              print(f"📄 [Response truncated - showing first 2000 of {len(generated_text)} characters]")
-                              print("💾 Full response will be saved to documentation file")
-                          
-                          print("=" * 80)
-                          print("🔍 Analyzing response structure...")
-                          
-                          # Count files to be created/modified
-                          file_pattern = r'#### FILE: ([^\n]+)'
-                          file_matches = re.findall(file_pattern, generated_text)
-                          
-                          if file_matches:
-                              print(f"📁 Found {len(file_matches)} files to process:")
-                              for i, file_path in enumerate(file_matches, 1):
-                                  print(f"   {i}. {file_path.strip()}")
-                          else:
-                              print("⚠️  No file patterns found in response")
-                          
-                          print("=" * 80)
-                          
-                          return generated_text
-                          
-                      except Exception as e:
-                          error_str = str(e)
-                          print(f"Attempt {attempt + 1} failed: {error_str}")
-                          
-                          # Check if it's a throttling error
-                          if 'ThrottlingException' in error_str or 'Too many requests' in error_str:
-                              if attempt < max_retries - 1:
-                                  # Exponential backoff with jitter
-                                  delay = min(base_delay * (2 ** attempt) + random.uniform(0, 1), max_delay)
-                                  print(f"Throttling detected, waiting {delay:.2f} seconds before retry...")
-                                  time.sleep(delay)
-                                  continue
-                              else:
-                                  print("❌ Max retries reached for throttling")
-                                  return None
-                          else:
-                              # For non-throttling errors, wait a shorter time and retry
-                              if attempt < max_retries - 1:
-                                  delay = min(base_delay + random.uniform(0, 2), 10)
-                                  print(f"Non-throttling error, waiting {delay:.2f} seconds before retry...")
-                                  time.sleep(delay)
-                                  continue
-                              else:
-                                  print(f"❌ Max retries reached. Final error: {e}")
-                                  return None
-                  
-                  print("❌ All retry attempts exhausted")
+              
+              pr_data = {
+                  'title': f'🤖 Claude Generated: {task_description[:50]}{"..." if len(task_description) > 50 else ""}',
+                  'head': branch_name,
+                  'base': 'main',
+                  'body': pr_body
+              }
+              
+              url = f'https://api.github.com/repos/{repo}/pulls'
+              response = requests.post(url, headers=headers, json=pr_data)
+              
+              if response.status_code == 201:
+                  pr_url = response.json()['html_url']
+                  print(f"✅ Pull request created: {pr_url}")
+                  return pr_url
+              else:
+                  print(f"❌ Failed to create PR: {response.status_code}")
+                  print(response.text)
                   return None
 
-              def parse_and_apply_changes(self, generated_response):
-                  """Parse Claude's response and apply file changes"""
-                  changes_applied = []
-                  
-                  print("🔧 Starting to parse and apply code changes...")
-                  print("=" * 80)
-                  
-                  try:
-                      # Extract file blocks using regex
-                      file_pattern = r'#### FILE: ([^\n]+)\n```(?:typescript|javascript|tsx|jsx|css|json|md)?\n(.*?)\n```'
-                      matches = re.findall(file_pattern, generated_response, re.DOTALL)
-                      
-                      if not matches:
-                          print("⚠️  No file patterns found in Claude's response")
-                          return changes_applied
-                      
-                      print(f"📁 Found {len(matches)} files to process")
-                      print("=" * 80)
-                      
-                      for i, (file_path, content) in enumerate(matches, 1):
-                          file_path = file_path.strip()
-                          content = content.strip()
-                          
-                          print(f"📄 Processing file {i}/{len(matches)}: {file_path}")
-                          print(f"   📊 Content length: {len(content)} characters")
-                          
-                          # Show a preview of the content
-                          content_preview = content[:200] + "..." if len(content) > 200 else content
-                          print(f"   👀 Preview:")
-                          print("   " + "-" * 50)
-                          for line in content_preview.split('\n')[:5]:
-                              print(f"   {line}")
-                          if len(content) > 200:
-                              print("   ...")
-                          print("   " + "-" * 50)
-                          
-                          try:
-                              # Check if file already exists
-                              file_exists = os.path.exists(file_path)
-                              action = 'modified' if file_exists else 'created'
-                              
-                              # Create directory if it doesn't exist
-                              dir_path = os.path.dirname(file_path)
-                              if dir_path:
-                                  os.makedirs(dir_path, exist_ok=True)
-                                  print(f"   📂 Directory ensured: {dir_path}")
-                              
-                              # Write file content
-                              with open(file_path, 'w', encoding='utf-8') as f:
-                                  f.write(content)
-                              
-                              changes_applied.append({
-                                  'file': file_path,
-                                  'action': action,
-                                  'status': 'success'
-                              })
-                              
-                              print(f"   ✅ Successfully {action}: {file_path}")
-                              
-                          except Exception as e:
-                              changes_applied.append({
-                                  'file': file_path,
-                                  'action': 'error',
-                                  'status': f'failed: {e}'
-                              })
-                              print(f"   ❌ Failed to apply changes to {file_path}: {e}")
-                          
-                          print("   " + "=" * 50)
-                  
-                  except Exception as e:
-                      print(f"❌ Error parsing generated response: {e}")
-                  
-                  print("=" * 80)
-                  print(f"🎯 Summary: {len(changes_applied)} files processed")
-                  success_count = len([c for c in changes_applied if c['status'] == 'success'])
-                  error_count = len(changes_applied) - success_count
-                  print(f"   ✅ Successful: {success_count}")
-                  print(f"   ❌ Errors: {error_count}")
-                  print("=" * 80)
-                  
-                  return changes_applied
-
-              def create_documentation(self, issue_context, generated_response, changes_applied):
-                  """Create documentation file for the changes"""
-                  doc_content = f"""# Claude Code Generation Report
-
-          **Issue:** #{self.issue_number} - {issue_context.get('title', 'No title')}
-          **Generated:** {datetime.now().isoformat()}
-          **Branch:** {self.branch_name}
-
-          ## Original Request
-
-          {issue_context.get('body', 'No description provided')}
-
-          ## Generated Response
-
-          {generated_response}
-
-          ## Changes Applied
-
-          """
-                  
-                  for change in changes_applied:
-                      doc_content += f"- **{change['file']}**: {change['action']} ({change['status']})\n"
-                  
-                  doc_content += f"""
-          ## Files Modified/Created
-
-          Total files changed: {len(changes_applied)}
-
-          ## Review Checklist
-
-          - [ ] Code follows project patterns and conventions
-          - [ ] TypeScript types are properly defined
-          - [ ] Error handling is implemented
-          - [ ] Mobile responsiveness is maintained
-          - [ ] Integration with existing components works
-          - [ ] Tests are added/updated (if applicable)
-
-          ---
-          *Generated automatically by Claude Coding Agent*
-          """
-                  
-                  doc_file_path = f".github/claude-generate/claude-issue-{self.issue_number}.md"
-                  os.makedirs(os.path.dirname(doc_file_path), exist_ok=True)
-                  
-                  with open(doc_file_path, 'w', encoding='utf-8') as f:
-                      f.write(doc_content)
-                  
-                  return doc_file_path
-
-              def create_branch_and_commit(self, changes_applied, doc_file_path):
-                  """Create branch and commit all changes"""
-                  try:
-                      # Configure git
-                      subprocess.run(['git', 'config', 'user.name', 'Claude Coding Agent'], check=True)
-                      subprocess.run(['git', 'config', 'user.email', 'claude-agent@github-actions.bot'], check=True)
-                      
-                      # Create and checkout new branch
-                      subprocess.run(['git', 'checkout', '-b', self.branch_name], check=True)
-                      
-                      # Add all changes
-                      subprocess.run(['git', 'add', '.'], check=True)
-                      
-                      # Create commit message
-                      commit_msg = f"""🤖 Claude: Implement changes for issue #{self.issue_number}
-
-          Automated code generation by Claude Coding Agent
-
-          Changes applied:
-          """
-                      
-                      for change in changes_applied:
-                          commit_msg += f"- {change['action']}: {change['file']}\n"
-                      
-                      commit_msg += f"\nDocumentation: {doc_file_path}\n\nResolves #{self.issue_number}"
-                      
-                      # Commit changes
-                      subprocess.run(['git', 'commit', '-m', commit_msg], check=True)
-                      
-                      # Push branch
-                      subprocess.run(['git', 'push', '-u', 'origin', self.branch_name], check=True)
-                      
-                      return True
-                  except subprocess.CalledProcessError as e:
-                      print(f"Git operation failed: {e}")
-                      return False
-
-              def create_pull_request(self, issue_context, changes_applied, doc_file_path):
-                  """Create pull request for the changes"""
-                  try:
-                      pr_title = f"🤖 Claude: {issue_context.get('title', f'Issue #{self.issue_number}')}"
-                      
-                      pr_body = f"""## 🤖 Automated Code Generation
-
-          This pull request was automatically generated by Claude Coding Agent in response to issue #{self.issue_number}.
-
-          ### 📋 Original Request
-          {issue_context.get('body', 'No description provided')[:500]}{'...' if len(issue_context.get('body', '')) > 500 else ''}
-
-          ### 📁 Files Changed
-          """
-                      
-                      for change in changes_applied:
-                          status_emoji = "✅" if change['status'] == 'success' else "❌"
-                          pr_body += f"{status_emoji} **{change['action'].title()}**: `{change['file']}`\n"
-                      
-                      pr_body += f"""
-          ### 📖 Documentation
-          See [{doc_file_path}]({doc_file_path}) for detailed information about the changes.
-
-          ### 🔍 Review Notes
-          - This code was generated by AI and should be thoroughly reviewed
-          - Test all functionality before merging
-          - Verify integration with existing codebase
-          - Check for any security implications
-
-          ### 🔗 Related
-          Closes #{self.issue_number}
-
-          ---
-          *Generated by Claude Coding Agent 🤖*
-          """
-                      
-                      pull_request = self.repo.create_pull(
-                          title=pr_title,
-                          body=pr_body,
-                          head=self.branch_name,
-                          base='main'
-                      )
-                      
-                      # Add labels
-                      pull_request.add_to_labels('claude-generated', 'automated')
-                      
-                      return pull_request.html_url
-                  except Exception as e:
-                      print(f"Failed to create pull request: {e}")
-                      return None
-
-              def run(self):
-                  """Main execution flow"""
-                  print("🚀 Starting Claude Coding Agent")
-                  print("=" * 80)
-                  print(f"📋 Issue Number: #{self.issue_number}")
-                  print(f"🏗️  Repository: {self.repo_owner}/{self.repo_name}")
-                  print(f"🌿 Branch Name: {self.branch_name}")
-                  print(f"🤖 AI Model: {self.model_id}")
-                  print("=" * 80)
-                  
-                  # Step 1: Extract issue context
-                  print("📋 STEP 1: Extracting issue context...")
-                  issue_context = self.get_issue_context()
-                  if issue_context:
-                      print(f"   ✅ Issue title: {issue_context.get('title', 'N/A')}")
-                      print(f"   📝 Description length: {len(issue_context.get('body', ''))} characters")
-                      print(f"   💬 Comments: {len(issue_context.get('comments', []))}")
-                      print(f"   🏷️  Labels: {', '.join(issue_context.get('labels', []))}")
-                      print(f"   📄 Referenced files: {len(issue_context.get('referenced_files', []))}")
-                      if issue_context.get('referenced_files'):
-                          for ref_file in issue_context.get('referenced_files', []):
-                              print(f"      - {ref_file}")
-                  else:
-                      print("   ❌ Failed to extract issue context")
-                  print()
-                  
-                  # Step 2: Analyze codebase
-                  print("🔍 STEP 2: Analyzing codebase structure...")
-                  codebase_structure = self.analyze_codebase_structure()
-                  if codebase_structure:
-                      print(f"   ✅ Project files found: {len(codebase_structure.get('project_files', []))}")
-                      print(f"   📁 Key config files: {len(codebase_structure.get('key_files', {}))}")
-                      for config_file in codebase_structure.get('key_files', {}).keys():
-                          print(f"      - {config_file}")
-                  else:
-                      print("   ❌ Failed to analyze codebase")
-                  print()
-                  
-                  # Step 3: Read referenced files
-                  print("📖 STEP 3: Reading referenced files...")
-                  referenced_files_content = self.read_referenced_files(
-                      issue_context.get('referenced_files', []), 
-                      codebase_structure
-                  )
-                  if referenced_files_content:
-                      print(f"   ✅ Successfully read {len(referenced_files_content)} referenced files")
-                      for file_path, file_info in referenced_files_content.items():
-                          print(f"      - {file_path} ({len(file_info.get('content', ''))} chars)")
-                  else:
-                      print("   📝 No referenced files to read")
-                  print()
-                  
-                  # Step 4: Generate code with Claude
-                  print("🧠 STEP 4: Generating code with Claude AI...")
-                  generated_response = self.generate_code_with_claude(
-                      issue_context, 
-                      codebase_structure, 
-                      referenced_files_content
-                  )
-                  
-                  if not generated_response:
-                      print("❌ Failed to generate code")
-                      return False
-                  print()
-                  
-                  # Step 5: Apply changes
-                  print("⚡ STEP 5: Applying code changes...")
-                  changes_applied = self.parse_and_apply_changes(generated_response)
-                  print()
-                  
-                  # Step 6: Create documentation
-                  print("📝 STEP 6: Creating documentation...")
-                  doc_file_path = self.create_documentation(issue_context, generated_response, changes_applied)
-                  print(f"   ✅ Documentation created: {doc_file_path}")
-                  print()
-                  
-                  # Step 7: Commit and push
-                  print("🌿 STEP 7: Creating branch and committing changes...")
-                  if not self.create_branch_and_commit(changes_applied, doc_file_path):
-                      print("❌ Failed to create branch and commit")
-                      return False
-                  print("   ✅ Branch created and changes committed")
-                  print()
-                  
-                  # Step 8: Create PR
-                  print("📤 STEP 8: Creating pull request...")
-                  pr_url = self.create_pull_request(issue_context, changes_applied, doc_file_path)
+          def main():
+              task_description = os.environ['TASK_DESCRIPTION']
+              branch_name = os.environ['TARGET_BRANCH']
+              
+              print(f"🚀 Generating code for task: {task_description}")
+              
+              # Analyze codebase
+              print("📊 Analyzing codebase...")
+              codebase_context = analyze_codebase()
+              
+              # Generate code with Claude
+              print("🧠 Generating code with Claude...")
+              generated_content = generate_code_with_claude(task_description, codebase_context)
+              
+              # Create branch and commit
+              print(f"🌿 Creating branch: {branch_name}")
+              if create_branch_and_commit(branch_name, generated_content):
+                  # Create pull request
+                  print("📝 Creating pull request...")
+                  pr_url = create_pull_request(branch_name, task_description, generated_content)
                   
                   if pr_url:
-                      print("=" * 80)
-                      print("🎉 CLAUDE CODING AGENT COMPLETED SUCCESSFULLY!")
-                      print("=" * 80)
-                      print(f"🔗 Pull Request: {pr_url}")
-                      print(f"📄 Documentation: {doc_file_path}")
-                      print(f"🌿 Branch: {self.branch_name}")
-                      print(f"📁 Files Changed: {len(changes_applied)}")
-                      print("=" * 80)
-                      return True
+                      print(f"🎉 Code generation completed successfully!")
+                      print(f"Pull request: {pr_url}")
                   else:
-                      print("⚠️ Code applied but PR creation failed")
-                      return False
+                      print("⚠️ Code generated but PR creation failed")
+              else:
+                  print("❌ Failed to create branch and commit changes")
 
-          # Main execution
           if __name__ == "__main__":
-              agent = ClaudeCodingAgent()
-              success = agent.run()
-              exit(0 if success else 1)
+              main()
           EOF
 
-          python claude_coding_agent.py
-
-      - name: Comment on issue
-        if: success()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const issueNumber = ${{ needs.check-trigger.outputs.issue_number }};
-
-            github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issueNumber,
-              body: `🤖 **Claude Coding Agent Activated!**
-              
-              I'm working on implementing the changes described in this issue. Here's what I'm doing:
-              
-              1. ✅ Analyzed the issue requirements
-              2. ✅ Examined the codebase structure  
-              3. ✅ Generated code changes with Claude AI
-              4. ✅ Applied changes to files
-              5. ✅ Created branch: \`claude-code-issue-${issueNumber}\`
-              6. ✅ Created pull request with the implementation
-              
-              Check the pull request for the generated code and detailed documentation!
-              
-              ---
-              *Powered by Claude AI via Amazon Bedrock* 🚀`
-            });
-
-      - name: Handle failure
-        if: failure()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const issueNumber = ${{ needs.check-trigger.outputs.issue_number }};
-
-            github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issueNumber,
-              body: `❌ **Claude Coding Agent Failed**
-              
-              I encountered an error while trying to implement the changes for this issue. 
-              
-              Please check the workflow logs for details and ensure:
-              - The issue description is clear and actionable
-              - Required AWS credentials are properly configured
-              - The repository structure is accessible
-              
-              You can try again by removing and re-adding the \`claude-code-generate\` label.
-              
-              ---
-              *Claude Coding Agent* 🤖`
-            });
+          python claude_generator.py
