@@ -493,14 +493,6 @@ jobs:
                   print("=" * 80)
                   
                   return changes_applied
-                                  'status': f'failed: {e}'
-                              })
-                              print(f"❌ Failed to apply changes to {file_path}: {e}")
-                  
-                  except Exception as e:
-                      print(f"Error parsing generated response: {e}")
-                  
-                  return changes_applied
 
               def create_documentation(self, issue_context, generated_response, changes_applied):
                   """Create documentation file for the changes"""
