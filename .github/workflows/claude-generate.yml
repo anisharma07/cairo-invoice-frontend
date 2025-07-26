@@ -314,9 +314,14 @@ jobs:
                   base_delay = 1
                   max_delay = 60
                   
+                  print("🤖 Preparing to send prompt to Claude AI...")
+                  print(f"📝 Prompt length: {len(context_prompt)} characters")
+                  print(f"🎯 Using model: {self.model_id}")
+                  print("=" * 80)
+                  
                   for attempt in range(max_retries):
                       try:
-                          print(f"Attempt {attempt + 1}/{max_retries} to generate code...")
+                          print(f"🚀 Attempt {attempt + 1}/{max_retries} - Sending request to Claude AI...")
                           
                           body = {
                               "anthropic_version": "bedrock-2023-05-31",
@@ -329,6 +334,9 @@ jobs:
                               ]
                           }
                           
+                          print("⏳ Waiting for Claude AI response...")
+                          start_time = time.time()
+                          
                           response = self.bedrock_client.invoke_model(
                               body=json.dumps(body),
                               modelId=self.model_id,
@@ -337,8 +345,43 @@ jobs:
                           )
                           
                           response_body = json.loads(response.get('body').read())
-                          print("✅ Successfully generated code with Claude!")
-                          return response_body['content'][0]['text']
+                          generated_text = response_body['content'][0]['text']
+                          
+                          end_time = time.time()
+                          generation_time = end_time - start_time
+                          
+                          print(f"✅ Successfully received Claude AI response in {generation_time:.2f} seconds!")
+                          print(f"📊 Response length: {len(generated_text)} characters")
+                          print("=" * 80)
+                          print("🧠 CLAUDE AI RESPONSE:")
+                          print("=" * 80)
+                          
+                          # Display the first 2000 characters of the response for preview
+                          preview_text = generated_text[:2000] + "..." if len(generated_text) > 2000 else generated_text
+                          print(preview_text)
+                          
+                          if len(generated_text) > 2000:
+                              print("=" * 80)
+                              print(f"📄 [Response truncated - showing first 2000 of {len(generated_text)} characters]")
+                              print("💾 Full response will be saved to documentation file")
+                          
+                          print("=" * 80)
+                          print("🔍 Analyzing response structure...")
+                          
+                          # Count files to be created/modified
+                          file_pattern = r'#### FILE: ([^\n]+)'
+                          file_matches = re.findall(file_pattern, generated_text)
+                          
+                          if file_matches:
+                              print(f"📁 Found {len(file_matches)} files to process:")
+                              for i, file_path in enumerate(file_matches, 1):
+                                  print(f"   {i}. {file_path.strip()}")
+                          else:
+                              print("⚠️  No file patterns found in response")
+                          
+                          print("=" * 80)
+                          
+                          return generated_text
                           
                       except Exception as e:
                           error_str = str(e)
@@ -373,18 +416,48 @@ jobs:
                   """Parse Claude's response and apply file changes"""
                   changes_applied = []
                   
+                  print("🔧 Starting to parse and apply code changes...")
+                  print("=" * 80)
+                  
                   try:
                       # Extract file blocks using regex
                       file_pattern = r'#### FILE: ([^\n]+)\n```(?:typescript|javascript|tsx|jsx|css|json|md)?\n(.*?)\n```'
                       matches = re.findall(file_pattern, generated_response, re.DOTALL)
                       
-                      for file_path, content in matches:
+                      if not matches:
+                          print("⚠️  No file patterns found in Claude's response")
+                          return changes_applied
+                      
+                      print(f"📁 Found {len(matches)} files to process")
+                      print("=" * 80)
+                      
+                      for i, (file_path, content) in enumerate(matches, 1):
                           file_path = file_path.strip()
                           content = content.strip()
                           
+                          print(f"📄 Processing file {i}/{len(matches)}: {file_path}")
+                          print(f"   📊 Content length: {len(content)} characters")
+                          
+                          # Show a preview of the content
+                          content_preview = content[:200] + "..." if len(content) > 200 else content
+                          print(f"   👀 Preview:")
+                          print("   " + "-" * 50)
+                          for line in content_preview.split('\n')[:5]:
+                              print(f"   {line}")
+                          if len(content) > 200:
+                              print("   ...")
+                          print("   " + "-" * 50)
+                          
                           try:
+                              # Check if file already exists
+                              file_exists = os.path.exists(file_path)
+                              action = 'modified' if file_exists else 'created'
+                              
                               # Create directory if it doesn't exist
-                              os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                              dir_path = os.path.dirname(file_path)
+                              if dir_path:
+                                  os.makedirs(dir_path, exist_ok=True)
+                                  print(f"   📂 Directory ensured: {dir_path}")
                               
                               # Write file content
                               with open(file_path, 'w', encoding='utf-8') as f:
@@ -392,16 +465,34 @@ jobs:
                               
                               changes_applied.append({
                                   'file': file_path,
-                                  'action': 'created' if not os.path.exists(file_path) else 'modified',
+                                  'action': action,
                                   'status': 'success'
                               })
                               
-                              print(f"✅ Applied changes to: {file_path}")
+                              print(f"   ✅ Successfully {action}: {file_path}")
                               
                           except Exception as e:
                               changes_applied.append({
                                   'file': file_path,
                                   'action': 'error',
+                                  'status': f'failed: {e}'
+                              })
+                              print(f"   ❌ Failed to apply changes to {file_path}: {e}")
+                          
+                          print("   " + "=" * 50)
+                  
+                  except Exception as e:
+                      print(f"❌ Error parsing generated response: {e}")
+                  
+                  print("=" * 80)
+                  print(f"🎯 Summary: {len(changes_applied)} files processed")
+                  success_count = len([c for c in changes_applied if c['status'] == 'success'])
+                  error_count = len(changes_applied) - success_count
+                  print(f"   ✅ Successful: {success_count}")
+                  print(f"   ❌ Errors: {error_count}")
+                  print("=" * 80)
+                  
+                  return changes_applied
                                   'status': f'failed: {e}'
                               })
                               print(f"❌ Failed to apply changes to {file_path}: {e}")
@@ -550,25 +641,58 @@ jobs:
 
               def run(self):
                   """Main execution flow"""
-                  print(f"🚀 Starting Claude Coding Agent for issue #{self.issue_number}")
+                  print("🚀 Starting Claude Coding Agent")
+                  print("=" * 80)
+                  print(f"📋 Issue Number: #{self.issue_number}")
+                  print(f"🏗️  Repository: {self.repo_owner}/{self.repo_name}")
+                  print(f"🌿 Branch Name: {self.branch_name}")
+                  print(f"🤖 AI Model: {self.model_id}")
+                  print("=" * 80)
                   
                   # Step 1: Extract issue context
-                  print("📋 Extracting issue context...")
+                  print("📋 STEP 1: Extracting issue context...")
                   issue_context = self.get_issue_context()
+                  if issue_context:
+                      print(f"   ✅ Issue title: {issue_context.get('title', 'N/A')}")
+                      print(f"   📝 Description length: {len(issue_context.get('body', ''))} characters")
+                      print(f"   💬 Comments: {len(issue_context.get('comments', []))}")
+                      print(f"   🏷️  Labels: {', '.join(issue_context.get('labels', []))}")
+                      print(f"   📄 Referenced files: {len(issue_context.get('referenced_files', []))}")
+                      if issue_context.get('referenced_files'):
+                          for ref_file in issue_context.get('referenced_files', []):
+                              print(f"      - {ref_file}")
+                  else:
+                      print("   ❌ Failed to extract issue context")
+                  print()
                   
                   # Step 2: Analyze codebase
-                  print("🔍 Analyzing codebase structure...")
+                  print("🔍 STEP 2: Analyzing codebase structure...")
                   codebase_structure = self.analyze_codebase_structure()
+                  if codebase_structure:
+                      print(f"   ✅ Project files found: {len(codebase_structure.get('project_files', []))}")
+                      print(f"   📁 Key config files: {len(codebase_structure.get('key_files', {}))}")
+                      for config_file in codebase_structure.get('key_files', {}).keys():
+                          print(f"      - {config_file}")
+                  else:
+                      print("   ❌ Failed to analyze codebase")
+                  print()
                   
                   # Step 3: Read referenced files
-                  print("📖 Reading referenced files...")
+                  print("📖 STEP 3: Reading referenced files...")
                   referenced_files_content = self.read_referenced_files(
                       issue_context.get('referenced_files', []), 
                       codebase_structure
                   )
+                  if referenced_files_content:
+                      print(f"   ✅ Successfully read {len(referenced_files_content)} referenced files")
+                      for file_path, file_info in referenced_files_content.items():
+                          print(f"      - {file_path} ({len(file_info.get('content', ''))} chars)")
+                  else:
+                      print("   📝 No referenced files to read")
+                  print()
                   
                   # Step 4: Generate code with Claude
-                  print("🧠 Generating code with Claude...")
+                  print("🧠 STEP 4: Generating code with Claude AI...")
                   generated_response = self.generate_code_with_claude(
                       issue_context, 
                       codebase_structure, 
@@ -578,27 +702,40 @@ jobs:
                   if not generated_response:
                       print("❌ Failed to generate code")
                       return False
+                  print()
                   
                   # Step 5: Apply changes
-                  print("⚡ Applying code changes...")
+                  print("⚡ STEP 5: Applying code changes...")
                   changes_applied = self.parse_and_apply_changes(generated_response)
+                  print()
                   
                   # Step 6: Create documentation
-                  print("📝 Creating documentation...")
+                  print("📝 STEP 6: Creating documentation...")
                   doc_file_path = self.create_documentation(issue_context, generated_response, changes_applied)
+                  print(f"   ✅ Documentation created: {doc_file_path}")
+                  print()
                   
                   # Step 7: Commit and push
-                  print("🌿 Creating branch and committing changes...")
+                  print("🌿 STEP 7: Creating branch and committing changes...")
                   if not self.create_branch_and_commit(changes_applied, doc_file_path):
                       print("❌ Failed to create branch and commit")
                       return False
+                  print("   ✅ Branch created and changes committed")
+                  print()
                   
                   # Step 8: Create PR
-                  print("📤 Creating pull request...")
+                  print("📤 STEP 8: Creating pull request...")
                   pr_url = self.create_pull_request(issue_context, changes_applied, doc_file_path)
                   
                   if pr_url:
-                      print(f"🎉 Successfully completed! Pull request: {pr_url}")
+                      print("=" * 80)
+                      print("🎉 CLAUDE CODING AGENT COMPLETED SUCCESSFULLY!")
+                      print("=" * 80)
+                      print(f"🔗 Pull Request: {pr_url}")
+                      print(f"📄 Documentation: {doc_file_path}")
+                      print(f"🌿 Branch: {self.branch_name}")
+                      print(f"📁 Files Changed: {len(changes_applied)}")
+                      print("=" * 80)
                       return True
                   else:
                       print("⚠️ Code applied but PR creation failed")
