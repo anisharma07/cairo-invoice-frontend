@@ -1,0 +1,202 @@
+Project structure:
+.
+├── DOCKER.md
+├── Dockerfile
+├── Dockerfile.full
+├── LICENSE
+├── README.md
+├── android
+│   ├── app
+│   │   ├── build.gradle
+│   │   ├── capacitor.build.gradle
+│   │   ├── proguard-rules.pro
+│   │   └── src
+│   ├── build.gradle
+│   ├── capacitor.settings.gradle
+│   ├── gradle
+│   │   └── wrapper
+│   ├── gradle.properties
+│   ├── gradlew
+│   ├── gradlew.bat
+│   ├── settings.gradle
+│   └── variables.gradle
+├── capacitor.config.ts
+├── codebase_files.txt
+├── dev-dist
+│   ├── registerSW.js
+│   ├── sw.js
+│   └── workbox-9dc17825.js
+├── docker-compose.yml
+├── docs
+│   └── IPFS_INTEGRATION.md
+├── index.html
+├── ionic.config.json
+├── ios
+│   └── App
+│       ├── App
+│       ├── App.xcodeproj
+│       ├── App.xcworkspace
+│       └── Podfile
+├── nginx.conf
+├── package-lock.json
+├── package.json
+├── project_context.txt
+├── public
+│   ├── apple-touch-icon-180x180.png
+│   ├── apple-touch-icon.png
+│   ├── favicon.ico
+│   ├── favicon.png
+│   ├── invoices
+│   │   ├── company1.png
+│   │   ├── company2.png
+│   │   ├── invoice1.png
+│   │   └── invoice2.png
+│   ├── manifest.json
+│   ├── maskable-icon-512x512.png
+│   ├── pwa-16x16.png
+│   ├── pwa-192x192.png
+│   ├── pwa-32x32.png
+│   ├── pwa-512x512.png
+│   └── pwa-64x64.png
+├── pwa-assets.config.ts
+├── src
+│   ├── App.css
+│   ├── App.tsx
+│   ├── abis
+│   │   ├── constants.ts
+│   │   ├── medInvoiceAbi.ts
+│   │   └── medToken.ts
+│   ├── app-data-new.ts
+│   ├── app-data.ts
+│   ├── components
+│   │   ├── FileMenu
+│   │   ├── Files
+│   │   ├── Menu
+│   │   ├── OfflineFallback.tsx
+│   │   ├── OfflineIndicator.tsx
+│   │   ├── PWADemo.tsx
+│   │   ├── PWAInstallPrompt.tsx
+│   │   ├── PWAUpdatePrompt.tsx
+│   │   ├── Storage
+│   │   ├── socialcalc
+│   │   └── wallet
+│   ├── contexts
+│   │   ├── InvoiceContext.tsx
+│   │   └── ThemeContext.tsx
+│   ├── hooks
+│   │   ├── useContractRead.ts
+│   │   ├── useContractWrite.ts
+│   │   ├── usePWA.ts
+│   │   └── useWalletConnection.ts
+│   ├── main.tsx
+│   ├── pages
+│   │   ├── FilesPage.css
+│   │   ├── FilesPage.tsx
+│   │   ├── Home.css
+│   │   ├── Home.tsx
+│   │   ├── LandingPage.css
+│   │   ├── LandingPage.tsx
+│   │   ├── SettingsPage.css
+│   │   ├── SettingsPage.tsx
+│   │   └── WalletTestPage.tsx
+│   ├── providers
+│   │   └── StarknetProviders.tsx
+│   ├── services
+│   │   ├── camera-service.ts
+│   │   ├── cloud-service.ts
+│   │   ├── exportAllAsPdf.ts
+│   │   ├── exportAllSheetsAsPdf.ts
+│   │   ├── exportAsCsv.ts
+│   │   └── exportAsPdf.ts
+│   ├── theme
+│   │   └── variables.css
+│   ├── utils
+│   │   ├── auth-test.ts
+│   │   ├── backgroundSync.ts
+│   │   ├── helper.ts
+│   │   ├── ipfs.ts
+│   │   ├── offlineStorage.ts
+│   │   ├── proxyService.ts
+│   │   ├── pushNotifications.ts
+│   │   ├── walletDebug.ts
+│   │   └── walletHelpers.ts
+│   └── vite-env.d.ts
+├── test-ipfs.js
+├── tsconfig.json
+├── tsconfig.node.json
+└── vite.config.ts
+
+31 directories, 95 files
+Package.json content:
+{
+  "name": "Govt Invoice",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test.e2e": "cypress run",
+    "test.unit": "vitest",
+    "lint": "eslint",
+    "generate-pwa-assets": "pwa-assets-generator"
+  },
+  "dependencies": {
+    "@bcyesil/capacitor-plugin-printer": "^0.0.5",
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/camera": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/filesystem": "^6.0.0",
+    "@capacitor/ios": "^6.0.0",
+    "@capacitor/preferences": "^6.0.0",
+    "@capacitor/share": "^6.0.0",
+    "@ionic/react": "^8.0.0",
+    "@ionic/react-router": "^8.0.0",
+    "@starknet-react/chains": "^3.1.3",
+    "@starknet-react/core": "^3.7.4",
+    "@types/crypto-js": "^4.2.2",
+    "@types/react-router-dom": "^5.3.3",
+    "aws-sdk": "^2.1692.0",
+    "axios": "^1.9.0",
+    "capacitor-email-composer": "^6.0.0",
+    "crypto-js": "^4.2.0",
+    "html2canvas": "^1.4.1",
+    "ionicons": "^7.4.0",
+    "jspdf": "^3.0.1",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "react-router": "^5.3.4",
+    "react-router-dom": "^5.3.4",
+    "react-signature-canvas": "^1.1.0-alpha.2",
+    "starknet": "^6.24.1",
+    "vite-plugin-commonjs": "^0.10.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.0.0",
+    "@originjs/vite-plugin-commonjs": "^1.0.3",
+    "@rollup/plugin-commonjs": "^28.0.6",
+    "@rollup/plugin-node-resolve": "^16.0.1",
+    "@testing-library/dom": ">=7.21.4",
+    "@testing-library/jest-dom": "^5.16.5",
+    "@testing-library/react": "^14.0.0",
+    "@testing-library/user-event": "^14.4.3",
+    "@types/html2canvas": "^0.5.35",
+    "@types/react": "^18.0.27",
+    "@types/react-dom": "^18.0.10",
+    "@types/react-signature-canvas": "^1.0.7",
+    "@vite-pwa/assets-generator": "^0.2.4",
+    "@vitejs/plugin-legacy": "^5.0.0",
+    "@vitejs/plugin-react": "^4.0.1",
+    "cypress": "^13.5.0",
+    "eslint": "^8.35.0",
+    "eslint-plugin-react": "^7.32.2",
+    "jsdom": "^22.1.0",
+    "terser": "^5.4.0",
+    "typescript": "^5.1.6",
+    "vite": "^5.0.0",
+    "vite-plugin-pwa": "^0.19.0",
+    "vitest": "^0.34.6"
+  },
+  "description": "An Ionic project"
+}
