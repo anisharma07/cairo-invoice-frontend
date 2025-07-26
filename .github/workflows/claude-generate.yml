@@ -78,6 +78,8 @@ jobs:
           import subprocess
           import tempfile
           import re
+          import time
+          import random
           from datetime import datetime
           from github import Github
           import git
@@ -230,7 +232,7 @@ jobs:
                   return file_contents
 
               def generate_code_with_claude(self, issue_context, codebase_structure, referenced_files_content):
-                  """Generate code changes using Claude"""
+                  """Generate code changes using Claude with retry logic"""
                   
                   # Build comprehensive context
                   context_prompt = f"""
@@ -307,30 +309,65 @@ jobs:
           Make sure to provide complete, functional code that can be directly used in the repository.
           """
                   
-                  try:
-                      body = {
-                          "anthropic_version": "bedrock-2023-05-31",
-                          "max_tokens": 12000,
-                          "messages": [
-                              {
-                                  "role": "user",
-                                  "content": context_prompt
-                              }
-                          ]
-                      }
-                      
-                      response = self.bedrock_client.invoke_model(
-                          body=json.dumps(body),
-                          modelId=self.model_id,
-                          accept='application/json',
-                          contentType='application/json'
-                      )
-                      
-                      response_body = json.loads(response.get('body').read())
-                      return response_body['content'][0]['text']
-                  except Exception as e:
-                      print(f"Error generating code with Claude: {e}")
-                      return None
+                  # Retry configuration
+                  max_retries = 100
+                  base_delay = 1
+                  max_delay = 60
+                  
+                  for attempt in range(max_retries):
+                      try:
+                          print(f"Attempt {attempt + 1}/{max_retries} to generate code...")
+                          
+                          body = {
+                              "anthropic_version": "bedrock-2023-05-31",
+                              "max_tokens": 12000,
+                              "messages": [
+                                  {
+                                      "role": "user",
+                                      "content": context_prompt
+                                  }
+                              ]
+                          }
+                          
+                          response = self.bedrock_client.invoke_model(
+                              body=json.dumps(body),
+                              modelId=self.model_id,
+                              accept='application/json',
+                              contentType='application/json'
+                          )
+                          
+                          response_body = json.loads(response.get('body').read())
+                          print("✅ Successfully generated code with Claude!")
+                          return response_body['content'][0]['text']
+                          
+                      except Exception as e:
+                          error_str = str(e)
+                          print(f"Attempt {attempt + 1} failed: {error_str}")
+                          
+                          # Check if it's a throttling error
+                          if 'ThrottlingException' in error_str or 'Too many requests' in error_str:
+                              if attempt < max_retries - 1:
+                                  # Exponential backoff with jitter
+                                  delay = min(base_delay * (2 ** attempt) + random.uniform(0, 1), max_delay)
+                                  print(f"Throttling detected, waiting {delay:.2f} seconds before retry...")
+                                  time.sleep(delay)
+                                  continue
+                              else:
+                                  print("❌ Max retries reached for throttling")
+                                  return None
+                          else:
+                              # For non-throttling errors, wait a shorter time and retry
+                              if attempt < max_retries - 1:
+                                  delay = min(base_delay + random.uniform(0, 2), 10)
+                                  print(f"Non-throttling error, waiting {delay:.2f} seconds before retry...")
+                                  time.sleep(delay)
+                                  continue
+                              else:
+                                  print(f"❌ Max retries reached. Final error: {e}")
+                                  return None
+                  
+                  print("❌ All retry attempts exhausted")
+                  return None
 
               def parse_and_apply_changes(self, generated_response):
                   """Parse Claude's response and apply file changes"""
