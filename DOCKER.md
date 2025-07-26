@@ -12,6 +12,7 @@ This project includes Docker Compose configuration to run the Ionic React fronte
 ### Development Environment
 
 **Option 1: Alpine-based (smaller image)**
+
 ```bash
 # Start development environment
 docker-compose --profile dev up
@@ -21,6 +22,7 @@ docker-compose --profile dev up -d
 ```
 
 **Option 2: Full Node.js (more stable for complex builds)**
+
 ```bash
 # Start development environment with full Node.js image
 docker-compose --profile dev-full up
@@ -34,6 +36,7 @@ Access the application at http://localhost:5173
 ### Production Environment
 
 **Option 1: Alpine-based (smaller image)**
+
 ```bash
 # Start production environment
 docker-compose --profile prod up
@@ -43,6 +46,7 @@ docker-compose --profile prod up -d
 ```
 
 **Option 2: Full Node.js (more stable for complex builds)**
+
 ```bash
 # Start production environment with full Node.js image
 docker-compose --profile prod-full up
@@ -97,7 +101,19 @@ You can customize the build by setting environment variables in a `.env` file:
 ```env
 NODE_ENV=development
 VITE_API_URL=your_api_url
+VITE_APP_NAME=Your App Name
+JWT_SECRET=your-secret-key
 ```
+
+**Important:** Create a `.env` file from the example:
+
+```bash
+cp .env.example .env
+```
+
+### Environment Variable Loading
+
+The Docker Compose configuration includes `env_file: .env` directive to automatically load environment variables from your `.env` file into the containers.
 
 ## Stopping Services
 
@@ -125,6 +141,11 @@ If you encounter Python/gyp errors during build:
 - **Hot reload not working**: Verify that file watching is enabled in your Docker environment
 - **Port conflicts**: Make sure ports 5173 (dev) and 80 (prod) are not already in use
 - **Memory issues**: Increase Docker memory limits if builds fail due to insufficient resources
+- **Environment variables not loading**:
+  - Ensure `.env` file exists in the project root (copy from `.env.example`)
+  - Check file permissions: `chmod 644 .env`
+  - Verify `.env` file format (no quotes around values for Docker Compose)
+  - Restart containers after `.env` changes: `docker-compose down && docker-compose --profile [your-profile] up`
 
 ### Checking Logs
 
@@ -139,6 +160,53 @@ docker-compose logs -f [service-name]
 docker-compose build [service-name]
 ```
 
+### Environment Variables Troubleshooting
+
+If your `.env` file is not being picked up in Ubuntu:
+
+1. **Create .env file**: Copy from the example template
+
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Check file permissions**: Ensure Docker can read the file
+
+   ```bash
+   chmod 644 .env
+   ls -la .env
+   ```
+
+3. **Verify file location**: The `.env` file must be in the same directory as `docker-compose.yml`
+
+   ```bash
+   pwd
+   ls -la | grep -E "(docker-compose|\.env)"
+   ```
+
+4. **Check environment variables inside container**:
+
+   ```bash
+   # Access running container
+   docker exec -it ionic-govt-billing-dev-full bash
+
+   # Check environment variables
+   env | grep VITE
+   echo $VITE_API_URL
+   ```
+
+5. **Restart after changes**: Always restart containers after modifying `.env`
+
+   ```bash
+   docker-compose down
+   docker-compose --profile dev-full up
+   ```
+
+6. **Debug with explicit environment**: Test with inline environment variables
+   ```bash
+   VITE_API_URL=http://test.com docker-compose --profile dev-full up
+   ```
+
 ### Recommended Approach
 
 For most users, especially those encountering build issues, we recommend using the `-full` profiles:
@@ -147,6 +215,6 @@ For most users, especially those encountering build issues, we recommend using t
 # Development
 docker-compose --profile dev-full up
 
-# Production  
+# Production
 docker-compose --profile prod-full up
 ```
