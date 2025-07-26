@@ -49,7 +49,12 @@ jobs:
     needs: debug-workflow
     if: |
       (github.event_name == 'issues' && contains(github.event.issue.labels.*.name, 'claude-generate')) ||
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '/claude generate')) ||
+      (github.event_name == 'issue_comment' && (
+        contains(github.event.comment.body, '/claude generate') ||
+        contains(github.event.comment.body, '/claude-generate') ||
+        contains(github.event.comment.body, 'claude generate') ||
+        contains(github.event.comment.body, '@claude generate')
+      )) ||
       (github.event_name == 'workflow_dispatch')
 
     permissions:
@@ -72,9 +77,13 @@ jobs:
             echo "Labels: ${{ toJSON(github.event.issue.labels.*.name) }}"
             echo "Contains claude-generate: ${{ contains(github.event.issue.labels.*.name, 'claude-generate') }}"
           elif [ "${{ github.event_name }}" = "issue_comment" ]; then
-            echo "Checking comment for '/claude generate'..."
-            echo "Comment: ${{ github.event.comment.body }}"
-            echo "Contains /claude generate: ${{ contains(github.event.comment.body, '/claude generate') }}"
+            echo "Checking comment for trigger phrases..."
+            echo "Comment: '${{ github.event.comment.body }}'"
+            echo "Contains '/claude generate': ${{ contains(github.event.comment.body, '/claude generate') }}"
+            echo "Contains '/claude-generate': ${{ contains(github.event.comment.body, '/claude-generate') }}"
+            echo "Contains 'claude generate': ${{ contains(github.event.comment.body, 'claude generate') }}"
+            echo "Contains '@claude generate': ${{ contains(github.event.comment.body, '@claude generate') }}"
+            echo "Overall condition result: ${{ contains(github.event.comment.body, '/claude generate') || contains(github.event.comment.body, '/claude-generate') || contains(github.event.comment.body, 'claude generate') || contains(github.event.comment.body, '@claude generate') }}"
           fi
 
       - name: Configure AWS credentials
@@ -124,9 +133,25 @@ jobs:
             echo "EOF" >> $GITHUB_OUTPUT
             echo "branch=claude-generated-issue-${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
           else
-            # Extract task from comment
+            # Extract task from comment - handle multiple trigger formats
             COMMENT_BODY="${{ github.event.comment.body }}"
-            TASK_DESC=$(echo "$COMMENT_BODY" | sed -n 's|^/claude generate \(.*\)|\1|p')
+            echo "Processing comment: $COMMENT_BODY"
+            
+            # Try different patterns
+            TASK_DESC=""
+            if echo "$COMMENT_BODY" | grep -q "^/claude generate "; then
+              TASK_DESC=$(echo "$COMMENT_BODY" | sed -n 's|^/claude generate \(.*\)|\1|p')
+            elif echo "$COMMENT_BODY" | grep -q "^/claude-generate "; then
+              TASK_DESC=$(echo "$COMMENT_BODY" | sed -n 's|^/claude-generate \(.*\)|\1|p')
+            elif echo "$COMMENT_BODY" | grep -q "@claude generate"; then
+              TASK_DESC=$(echo "$COMMENT_BODY" | sed -n 's|.*@claude generate \(.*\)|\1|p')
+            elif echo "$COMMENT_BODY" | grep -q "claude generate"; then
+              TASK_DESC=$(echo "$COMMENT_BODY" | sed -n 's|.*claude generate \(.*\)|\1|p')
+            else
+              TASK_DESC="$COMMENT_BODY"
+            fi
+            
+            echo "Extracted task: $TASK_DESC"
             echo "description=$TASK_DESC" >> $GITHUB_OUTPUT
             echo "branch=claude-generated-comment-${{ github.event.comment.id }}" >> $GITHUB_OUTPUT
           fi
