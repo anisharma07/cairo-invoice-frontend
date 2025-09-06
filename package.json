@@ -1,7 +1,7 @@
 {
   "name": "Govt Invoice",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.0.8",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,6 +9,9 @@
     "preview": "vite preview",
     "test.e2e": "cypress run",
     "test.unit": "vitest",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage",
     "lint": "eslint",
     "generate-pwa-assets": "pwa-assets-generator"
   },
@@ -27,7 +30,6 @@
     "@starknet-react/core": "^3.7.4",
     "@types/crypto-js": "^4.2.2",
     "@types/react-router-dom": "^5.3.3",
-    "aws-sdk": "^2.1692.0",
     "axios": "^1.9.0",
     "capacitor-email-composer": "^6.0.0",
     "crypto-js": "^4.2.0",

@@ -1,27 +1,17 @@
-import {
-  IonApp,
-  IonRouterOutlet,
-  IonTabBar,
-  IonTabButton,
-  IonTabs,
-  IonIcon,
-  IonLabel,
-  setupIonicReact,
-} from "@ionic/react";
+import { IonApp, IonRouterOutlet, setupIonicReact } from "@ionic/react";
 import { IonReactRouter } from "@ionic/react-router";
 import { Route, Redirect } from "react-router-dom";
-import { documentText, folder, menu, settings, home } from "ionicons/icons";
+import { useState, useEffect } from "react";
 import Home from "./pages/Home";
 import FilesPage from "./pages/FilesPage";
 import SettingsPage from "./pages/SettingsPage";
 import LandingPage from "./pages/LandingPage";
-import WalletTestPage from "./pages/WalletTestPage";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import { InvoiceProvider } from "./contexts/InvoiceContext";
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
 import OfflineIndicator from "./components/OfflineIndicator";
 import { usePWA } from "./hooks/usePWA";
-
+import { isNewUser } from "./utils/helper";
 /* Core CSS required for Ionic components to work properly */
 import "@ionic/react/css/core.css";
 
@@ -48,6 +38,26 @@ setupIonicReact();
 const AppContent: React.FC = () => {
   const { isDarkMode } = useTheme();
   const { isOnline } = usePWA();
+  const [showLandingPage, setShowLandingPage] = useState(isNewUser());
+
+  // Listen for storage changes to update landing page visibility
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setShowLandingPage(isNewUser());
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
+    // Also check periodically for changes made in the same tab
+    const interval = setInterval(() => {
+      setShowLandingPage(isNewUser());
+    }, 100);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
 
   return (
     <IonApp className={isDarkMode ? "dark-theme" : "light-theme"}>
@@ -55,48 +65,27 @@ const AppContent: React.FC = () => {
         <IonReactRouter>
           <IonRouterOutlet>
             <Route exact path="/">
-              <LandingPage />
-            </Route>
-            <Route exact path="/wallet-test">
-              <WalletTestPage />
+              {showLandingPage ? <LandingPage /> : <Redirect to="/app/files" />}
             </Route>
             <Route path="/app">
-              <IonTabs>
-                <IonRouterOutlet>
-                  <Route exact path="/app/editor">
-                    {!isOnline && <OfflineIndicator />}
-                    <Home />
-                  </Route>
-                  <Route exact path="/app/files">
-                    {!isOnline && <OfflineIndicator />}
-                    <FilesPage />
-                  </Route>
-                  <Route exact path="/app/settings">
-                    {!isOnline && <OfflineIndicator />}
-                    <SettingsPage />
-                  </Route>
-                  <Route exact path="/app">
-                    <Redirect to="/app/editor" />
-                  </Route>
-                </IonRouterOutlet>
-
-                <IonTabBar slot="bottom">
-                  <IonTabButton tab="editor" href="/app/editor">
-                    <IonIcon icon={documentText} />
-                    <IonLabel>Editor</IonLabel>
-                  </IonTabButton>
-
-                  <IonTabButton tab="files" href="/app/files">
-                    <IonIcon icon={folder} />
-                    <IonLabel>Files</IonLabel>
-                  </IonTabButton>
-
-                  <IonTabButton tab="settings" href="/app/settings">
-                    <IonIcon icon={settings} />
-                    <IonLabel>Settings</IonLabel>
-                  </IonTabButton>
-                </IonTabBar>
-              </IonTabs>
+              {!isOnline && <OfflineIndicator />}
+              <IonRouterOutlet>
+                <Route exact path="/app/editor/:fileName">
+                  <Home />
+                </Route>
+                <Route exact path="/app/editor">
+                  <Home />
+                </Route>
+                <Route exact path="/app/files">
+                  <FilesPage />
+                </Route>
+                <Route exact path="/app/settings">
+                  <SettingsPage />
+                </Route>
+                <Route exact path="/app">
+                  <Redirect to="/app/files" />
+                </Route>
+              </IonRouterOutlet>
             </Route>
           </IonRouterOutlet>
         </IonReactRouter>
@@ -107,11 +96,11 @@ const AppContent: React.FC = () => {
 };
 
 const App: React.FC = () => (
-  <StarknetProviders>
-    <ThemeProvider>
-      <AppContent />
-    </ThemeProvider>
+  <ThemeProvider>
+    <StarknetProviders>
+    <AppContent />
   </StarknetProviders>
+  </ThemeProvider>
 );
 
 export default App;

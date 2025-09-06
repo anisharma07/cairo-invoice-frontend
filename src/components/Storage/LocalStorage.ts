@@ -1,6 +1,7 @@
 import { Preferences } from "@capacitor/preferences";
 import CryptoJS from "crypto-js";
 
+// Enhanced File class with template ID only
 export class File {
   created: string;
   modified: string;
@@ -9,6 +10,7 @@ export class File {
   billType: number;
   isEncrypted: boolean;
   password?: string;
+  templateId: number;
 
   constructor(
     created: string,
@@ -16,7 +18,8 @@ export class File {
     content: string,
     name: string,
     billType: number,
-    isEncrypted: boolean = false,
+    templateIdOrIsEncrypted?: number | boolean,
+    isEncryptedOrPassword?: boolean | string,
     password?: string
   ) {
     this.created = created;
@@ -24,8 +27,19 @@ export class File {
     this.content = content;
     this.name = name;
     this.billType = billType;
-    this.isEncrypted = isEncrypted;
-    this.password = password;
+
+    // Handle backward compatibility
+    if (typeof templateIdOrIsEncrypted === "boolean") {
+      // Old constructor signature: (created, modified, content, name, billType, isEncrypted, password)
+      this.isEncrypted = templateIdOrIsEncrypted;
+      this.password = isEncryptedOrPassword as string;
+      this.templateId = billType; // Use billType as default template ID for backward compatibility
+    } else {
+      // New constructor signature: (created, modified, content, name, billType, templateId, isEncrypted, password)
+      this.templateId = templateIdOrIsEncrypted || billType;
+      this.isEncrypted = (isEncryptedOrPassword as boolean) || false;
+      this.password = password;
+    }
   }
 }
 
@@ -52,6 +66,7 @@ export class Local {
       name: file.name,
       billType: file.billType,
       isEncrypted: file.isEncrypted,
+      templateId: file.templateId,
     };
 
     // If file is password protected, encrypt the content
@@ -99,6 +114,7 @@ export class Local {
         created: (data as any).created,
         modified: (data as any).modified,
         isEncrypted: (data as any).isEncrypted || false,
+        templateId: (data as any).templateId || null,
       };
     }
     return arr;
@@ -125,5 +141,63 @@ export class Local {
     } catch (error) {
       return false;
     }
+  };
+
+  // Get files by template ID
+  _getFilesByTemplate = async (templateId: number) => {
+    const allFiles = await this._getAllFiles();
+    const templateFiles = {};
+
+    for (const [fileName, fileInfo] of Object.entries(allFiles)) {
+      if ((fileInfo as any).templateId === templateId) {
+        templateFiles[fileName] = fileInfo;
+      }
+    }
+
+    return templateFiles;
+  };
+
+  // Get template ID for a specific file
+  _getTemplateId = async (fileName: string): Promise<number | null> => {
+    try {
+      const data = await this._getFile(fileName);
+      return data.templateId || null;
+    } catch (error) {
+      return null;
+    }
+  };
+
+  // Update template ID for a file
+  _updateTemplateId = async (fileName: string, templateId: number) => {
+    try {
+      const data = await this._getFile(fileName);
+      data.templateId = templateId;
+      data.modified = new Date().toISOString();
+
+      await Preferences.set({
+        key: fileName,
+        value: JSON.stringify(data),
+      });
+
+      return true;
+    } catch (error) {
+      console.error("Error updating template ID:", error);
+      return false;
+    }
+  };
+
+  // Get unique template IDs from all files
+  _getAvailableTemplates = async () => {
+    const allFiles = await this._getAllFiles();
+    const templateIds = new Set<number>();
+
+    for (const fileInfo of Object.values(allFiles)) {
+      const templateId = (fileInfo as any).templateId;
+      if (templateId) {
+        templateIds.add(templateId);
+      }
+    }
+
+    return Array.from(templateIds);
   };
 }

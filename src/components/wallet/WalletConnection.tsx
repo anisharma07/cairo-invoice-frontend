@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   IonButton,
   IonButtons,
@@ -13,6 +13,7 @@ import {
   IonItem,
   IonLabel,
   IonChip,
+  IonToggle,
 } from "@ionic/react";
 import { useConnect, useDisconnect, useAccount } from "@starknet-react/core";
 import {
@@ -26,6 +27,10 @@ import { useTheme } from "../../contexts/ThemeContext";
 
 const WalletConnection: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
+  const [isAutoConnecting, setIsAutoConnecting] = useState(false);
+  const [autoConnectEnabled, setAutoConnectEnabled] = useState(
+    localStorage.getItem('starknet-auto-connect') === 'true'
+  );
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
   const { address, status } = useAccount();
@@ -33,9 +38,81 @@ const WalletConnection: React.FC = () => {
 
   const isConnected = status === "connected" && address;
 
+  // Auto-connect functionality
+  useEffect(() => {
+    const attemptAutoConnect = async () => {
+      // Don't auto-connect if already connected or connecting
+      if (isConnected || status === "connecting" || isAutoConnecting) {
+        return;
+      }
+
+      try {
+        // Check localStorage for previous wallet connection preference
+        const lastConnectedWallet = localStorage.getItem('starknet-last-wallet');
+        const autoConnectEnabled = localStorage.getItem('starknet-auto-connect') === 'true';
+        
+        if (!autoConnectEnabled || !lastConnectedWallet) {
+          return;
+        }
+
+        // Find the connector that matches the stored wallet
+        const savedConnector = connectors.find(
+          connector => connector.id === lastConnectedWallet
+        );
+
+        if (savedConnector) {
+          setIsAutoConnecting(true);
+          console.log(`Auto-connecting to ${savedConnector.id}...`);
+          
+          // Attempt to connect
+          await connect({ connector: savedConnector });
+          
+          // Small delay to let connection settle
+          setTimeout(() => {
+            setIsAutoConnecting(false);
+          }, 2000);
+        }
+      } catch (error) {
+        console.log('Auto-connect failed:', error);
+        setIsAutoConnecting(false);
+        // Clear invalid stored data if auto-connect fails
+        localStorage.removeItem('starknet-last-wallet');
+      }
+    };
+
+    // Only attempt auto-connect when connectors are available and we're not connected
+    if (connectors.length > 0 && !isConnected) {
+      attemptAutoConnect();
+    }
+  }, [connectors, isConnected, status, connect, isAutoConnecting]);
+
   const handleConnect = (connector: (typeof connectors)[number]) => {
+    // Store the wallet choice for auto-connect
+    localStorage.setItem('starknet-last-wallet', connector.id);
+    localStorage.setItem('starknet-auto-connect', 'true');
+    
     connect({ connector });
     setShowModal(false);
+  };
+
+  const handleDisconnect = () => {
+    // Clear auto-connect preference when manually disconnecting
+    localStorage.removeItem('starknet-last-wallet');
+    localStorage.setItem('starknet-auto-connect', 'false');
+    setAutoConnectEnabled(false);
+    
+    disconnect();
+    setShowModal(false);
+  };
+
+  const toggleAutoConnect = (enabled: boolean) => {
+    setAutoConnectEnabled(enabled);
+    localStorage.setItem('starknet-auto-connect', enabled.toString());
+    
+    if (!enabled) {
+      // Remove saved wallet when disabling auto-connect
+      localStorage.removeItem('starknet-last-wallet');
+    }
   };
 
   const formatAddress = (addr: string) => {
@@ -67,6 +144,17 @@ const WalletConnection: React.FC = () => {
         return walletOutline;
     }
   };
+
+  // Show connecting state during auto-connect
+  if (isAutoConnecting || status === "connecting") {
+    return (
+      <IonIcon
+        icon={wallet}
+        color="warning"
+        size="large"
+      />
+    );
+  }
 
   return (
     <>
@@ -113,6 +201,20 @@ const WalletConnection: React.FC = () => {
                   <h3>Choose a wallet to connect:</h3>
                   <p>Select from the available Starknet wallets to continue.</p>
                 </IonText>
+                
+                {/* Auto-connect toggle */}
+                <IonItem>
+                  <IonLabel>
+                    <h3>Auto-connect on app start</h3>
+                    <p>Automatically connect to your preferred wallet when the app loads</p>
+                  </IonLabel>
+                  <IonToggle
+                    checked={autoConnectEnabled}
+                    onIonChange={(e) => toggleAutoConnect(e.detail.checked)}
+                    slot="end"
+                  />
+                </IonItem>
+                
                 <IonList>
                   {connectors.map((connector) => (
                     <IonItem
@@ -155,14 +257,24 @@ const WalletConnection: React.FC = () => {
                   expand="block"
                   fill="outline"
                   color="danger"
-                  onClick={() => {
-                    disconnect();
-                    setShowModal(false);
-                  }}
+                  onClick={handleDisconnect}
                 >
                   <IonIcon icon={close} slot="start" />
                   Disconnect Wallet
                 </IonButton>
+                
+                {/* Auto-connect toggle for connected state */}
+                <IonItem style={{ marginTop: "16px" }}>
+                  <IonLabel>
+                    <h3>Auto-connect on app start</h3>
+                    <p>Automatically connect to this wallet when the app loads</p>
+                  </IonLabel>
+                  <IonToggle
+                    checked={autoConnectEnabled}
+                    onIonChange={(e) => toggleAutoConnect(e.detail.checked)}
+                    slot="end"
+                  />
+                </IonItem>
               </div>
             )}
           </div>

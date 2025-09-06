@@ -29,7 +29,8 @@ import {
 } from "ionicons/icons";
 import { useHistory } from "react-router-dom";
 import { useTheme } from "../contexts/ThemeContext";
-import { cloudService } from "../services/cloud-service";
+import { markUserAsExisting } from "../utils/helper";
+// import { cloudService } from "../services/cloud-service";
 import "./LandingPage.css";
 
 const LandingPage: React.FC = () => {
@@ -38,13 +39,24 @@ const LandingPage: React.FC = () => {
 
   // Check authentication status on component mount
   useEffect(() => {
-    if (cloudService.isAuthenticated()) {
-      history.replace("/app/editor");
-    }
+    // if (cloudService.isAuthenticated()) {
+    //   history.push("/app/files");
+    // }
   }, [history]);
 
   const handleGetStarted = () => {
-    history.push("/app/editor");
+    console.log("handleGetStarted called");
+    try {
+      // Mark user as existing (no longer new)
+      markUserAsExisting();
+      console.log("User marked as existing");
+      // Navigate to the files page - use replace to avoid back button issues
+      console.log("Navigating to /app/files");
+      history.replace("/app/files");
+      console.log("Navigation completed");
+    } catch (error) {
+      console.error("Error in handleGetStarted:", error);
+    }
   };
 
   const features = [
@@ -237,7 +249,7 @@ const LandingPage: React.FC = () => {
                       className="cta-button"
                       onClick={handleGetStarted}
                     >
-                      Access Invoice Editor
+                      Access File Manager
                       <IonIcon icon={arrowForward} slot="end" />
                     </IonButton>
                     <div className="feature-chips">

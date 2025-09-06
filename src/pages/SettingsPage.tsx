@@ -15,38 +15,20 @@ import {
   IonItem,
   IonLabel,
   IonList,
-  IonToggle,
-  IonInput,
   IonModal,
   IonToast,
   IonGrid,
   IonRow,
   IonCol,
-  IonSelect,
-  IonSelectOption,
   IonRange,
   IonPopover,
+  IonToggle,
 } from "@ionic/react";
 import {
   saveOutline,
-  cloudUpload,
-  save,
-  print,
-  mail,
   settings,
   informationCircle,
-  moon,
-  sunny,
-  card,
-  alertCircle,
-  logIn,
-  personAdd,
-  logOut,
-  checkmarkCircle,
-  personCircle,
   createOutline,
-  trashOutline,
-  colorPaletteOutline,
   add,
   checkmark,
   pencil,
@@ -54,48 +36,30 @@ import {
   cloudUploadOutline,
   imageOutline,
   downloadOutline,
-  notifications,
   wifiOutline,
   cloudOfflineOutline,
-  cloudDoneOutline,
-  refreshOutline,
-  bug,
-  wallet,
+  arrowBack,
+  flash,
 } from "ionicons/icons";
 import SignatureCanvas from "react-signature-canvas";
 import Menu from "../components/Menu/Menu";
-import { Local } from "../components/Storage/LocalStorage";
 import { useTheme } from "../contexts/ThemeContext";
-import { useInvoice } from "../contexts/InvoiceContext";
-import PWAInstallPrompt from "../components/PWAInstallPrompt";
-import PWADemo from "../components/PWADemo";
-import { usePushNotifications } from "../utils/pushNotifications";
+import { useHistory } from "react-router-dom";
 import { usePWA } from "../hooks/usePWA";
+import { resetUserOnboarding } from "../utils/helper";
+import { getAutoSaveEnabled, setAutoSaveEnabled } from "../utils/settings";
 import "./SettingsPage.css";
-import {
-  cloudService,
-  ServerFile,
-  LoginCredentials,
-  RegisterCredentials,
-} from "../services/cloud-service";
-import { useAccount, useConnect, useDisconnect } from "@starknet-react/core";
-import { useGetUserFileLimits } from "../hooks/useContractRead";
 
 const SettingsPage: React.FC = () => {
   const [showMenu, setShowMenu] = useState(false);
   const { isDarkMode, toggleDarkMode } = useTheme();
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [showRegisterModal, setShowRegisterModal] = useState(false);
-  const [loadingFile, setLoadingFile] = useState<string | null>(null);
+  const history = useHistory();
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showResetToast, setShowResetToast] = useState(false);
+  const [globalAutoSaveEnabled, setGlobalAutoSaveEnabled] = useState(getAutoSaveEnabled());
 
-  // PWA features
-  const { requestPermission, subscribe, getPermissionState } =
-    usePushNotifications();
-  const [notificationPermission, setNotificationPermission] =
-    useState<NotificationPermission>("default");
   const { isInstallable, isInstalled, isOnline, installApp } = usePWA();
 
   // Signature state
@@ -119,13 +83,18 @@ const SettingsPage: React.FC = () => {
     useState<File | null>(null);
   const [uploadPreview, setUploadPreview] = useState<string | null>(null);
 
-  // Wallet connection hooks
-  const { address, isConnected } = useAccount();
-  const { connect, connectors } = useConnect();
-  const { disconnect } = useDisconnect();
-  const { fileLimits } = useGetUserFileLimits({
-    accountAddress: address as `0x${string}` | undefined,
-  });
+  // Logo state
+  const [showLogoModal, setShowLogoModal] = useState(false);
+  const [savedLogos, setSavedLogos] = useState<
+    Array<{ id: string; data: string; name: string }>
+  >([]);
+  const [selectedLogoId, setSelectedLogoId] = useState<string | null>(null);
+  const [editingLogoId, setEditingLogoId] = useState<string | null>(null);
+  const [showUploadLogoModal, setShowUploadLogoModal] = useState(false);
+  const [selectedLogoFile, setSelectedLogoFile] = useState<File | null>(null);
+  const [logoUploadPreview, setLogoUploadPreview] = useState<string | null>(
+    null
+  );
 
   // Available pen colors
   const penColors = [
@@ -137,99 +106,6 @@ const SettingsPage: React.FC = () => {
     { name: "Brown", value: "#8B4513" },
   ];
 
-  // Auth state
-  const [loginCredentials, setLoginCredentials] = useState<LoginCredentials>({
-    email: "",
-    password: "",
-  });
-  const [registerCredentials, setRegisterCredentials] =
-    useState<RegisterCredentials>({
-      name: "",
-      email: "",
-      password: "",
-    });
-
-  // const handleSaveLocal = () => {
-  //   setShowMenu(true);
-  // };
-
-  const handleLogin = async () => {
-    if (!loginCredentials.email || !loginCredentials.password) {
-      setToastMessage("Please fill in all fields");
-      setShowToast(true);
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      await cloudService.login(loginCredentials);
-      setShowLoginModal(false);
-      setLoginCredentials({ email: "", password: "" });
-    } catch (error) {
-      setToastMessage(
-        error instanceof Error
-          ? error.message
-          : "Login failed. Please check your credentials."
-      );
-      setShowToast(true);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleRegister = async () => {
-    if (
-      !registerCredentials.name ||
-      !registerCredentials.email ||
-      !registerCredentials.password
-    ) {
-      setToastMessage("Please fill in all fields");
-      setShowToast(true);
-      return;
-    }
-
-    if (registerCredentials.password.length < 6) {
-      setToastMessage("Password must be at least 6 characters long");
-      setShowToast(true);
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      await cloudService.register(registerCredentials);
-      setShowRegisterModal(false);
-      setRegisterCredentials({ name: "", email: "", password: "" });
-      setToastMessage(
-        "Registration successful! Please login with your new account."
-      );
-      setShowToast(true);
-    } catch (error) {
-      setToastMessage(
-        error instanceof Error
-          ? error.message
-          : "Registration failed. Please try again."
-      );
-      setShowToast(true);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    setIsLoading(true);
-    try {
-      await cloudService.logout();
-      setToastMessage("Logged out successfully");
-      setShowToast(true);
-    } catch (error) {
-      // Even if logout fails on server, we still clear local data
-      setToastMessage("Logged out successfully");
-      setShowToast(true);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   // Load saved signatures from localStorage on component mount
   React.useEffect(() => {
     const saved = localStorage.getItem("userSignatures");
@@ -238,7 +114,7 @@ const SettingsPage: React.FC = () => {
         const signatures = JSON.parse(saved);
         setSavedSignatures(signatures);
       } catch (error) {
-        console.error("Error parsing saved signatures:", error);
+        // Error parsing saved signatures, use empty array
         setSavedSignatures([]);
       }
     }
@@ -247,6 +123,26 @@ const SettingsPage: React.FC = () => {
     const selectedId = localStorage.getItem("selectedSignatureId");
     if (selectedId) {
       setSelectedSignatureId(selectedId);
+    }
+  }, []);
+
+  // Load saved logos from localStorage on component mount
+  React.useEffect(() => {
+    const saved = localStorage.getItem("userLogos");
+    if (saved) {
+      try {
+        const logos = JSON.parse(saved);
+        setSavedLogos(logos);
+      } catch (error) {
+        // Error parsing saved logos, use empty array
+        setSavedLogos([]);
+      }
+    }
+
+    // Load selected logo ID
+    const selectedId = localStorage.getItem("selectedLogoId");
+    if (selectedId) {
+      setSelectedLogoId(selectedId);
     }
   }, []);
 
@@ -462,7 +358,6 @@ const SettingsPage: React.FC = () => {
         setShowToast(true);
       }
     } catch (error) {
-      console.error("Error saving signature:", error);
       setToastMessage("Error saving signature. Please try again.");
       setShowToast(true);
     }
@@ -688,7 +583,6 @@ const SettingsPage: React.FC = () => {
       setToastMessage("Signature uploaded successfully!");
       setShowToast(true);
     } catch (error) {
-      console.error("Error saving uploaded signature:", error);
       setToastMessage("Error saving signature. Please try again.");
       setShowToast(true);
     }
@@ -700,28 +594,236 @@ const SettingsPage: React.FC = () => {
     setUploadPreview(null);
   };
 
+  // Logo management functions
+  const handleSaveLogo = (logoData: string, logoName: string) => {
+    try {
+      const newLogo = {
+        id: Date.now().toString(),
+        data: logoData,
+        name: logoName,
+      };
+
+      const updatedLogos = [...savedLogos, newLogo];
+      setSavedLogos(updatedLogos);
+      localStorage.setItem("userLogos", JSON.stringify(updatedLogos));
+
+      // Set as selected if it's the first one
+      if (updatedLogos.length === 1) {
+        setSelectedLogoId(newLogo.id);
+        localStorage.setItem("selectedLogoId", newLogo.id);
+      }
+
+      setToastMessage("Logo saved successfully");
+      setShowToast(true);
+    } catch (error) {
+      setToastMessage("Error saving logo. Please try again.");
+      setShowToast(true);
+    }
+  };
+
+  const handleDeleteLogo = (logoId: string) => {
+    const updatedLogos = savedLogos.filter((logo) => logo.id !== logoId);
+    setSavedLogos(updatedLogos);
+    localStorage.setItem("userLogos", JSON.stringify(updatedLogos));
+
+    // If deleted logo was selected, select first available or none
+    if (selectedLogoId === logoId) {
+      const newSelectedId = updatedLogos.length > 0 ? updatedLogos[0].id : null;
+      setSelectedLogoId(newSelectedId);
+      if (newSelectedId) {
+        localStorage.setItem("selectedLogoId", newSelectedId);
+      } else {
+        localStorage.removeItem("selectedLogoId");
+      }
+    }
+
+    setToastMessage("Logo deleted successfully");
+    setShowToast(true);
+  };
+
+  const handleSelectLogo = (logoId: string | null) => {
+    setSelectedLogoId(logoId);
+    if (logoId) {
+      localStorage.setItem("selectedLogoId", logoId);
+    } else {
+      localStorage.removeItem("selectedLogoId");
+    }
+  };
+
+  const handleAddLogo = () => {
+    if (savedLogos.length >= 3) {
+      setToastMessage(
+        "Maximum 3 logos can be stored. Please delete an existing logo to add a new one."
+      );
+      setShowToast(true);
+      return;
+    }
+    setShowUploadLogoModal(true);
+  };
+
+  const handleLogoFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = [
+      "image/png",
+      "image/jpeg",
+      "image/jpg",
+      "image/gif",
+      "image/webp",
+      "image/svg+xml",
+    ];
+    if (!allowedTypes.includes(file.type)) {
+      setToastMessage(
+        "Invalid file type. Only PNG, JPG, JPEG, GIF, WebP, and SVG files are allowed."
+      );
+      setShowToast(true);
+      return;
+    }
+
+    // Validate file size (100KB)
+    const maxSize = 100 * 1024; // 100KB
+    if (file.size > maxSize) {
+      setToastMessage(
+        `File size too large. Maximum size allowed is ${Math.round(
+          maxSize / 1024
+        )}KB. Your file is ${Math.round(file.size / 1024)}KB.`
+      );
+      setShowToast(true);
+      return;
+    }
+
+    setSelectedLogoFile(file);
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target?.result as string;
+      if (result) {
+        setLogoUploadPreview(result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const validateLogoImageDimensions = (file: File): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const { width, height } = img;
+
+        // Validate dimensions for logos
+        const minWidth = 50,
+          maxWidth = 500;
+        const minHeight = 30,
+          maxHeight = 500;
+
+        if (width < minWidth || width > maxWidth) {
+          setToastMessage(
+            `Logo width must be between ${minWidth}px and ${maxWidth}px. Your image is ${width}px wide.`
+          );
+          setShowToast(true);
+          resolve(false);
+          return;
+        }
+
+        if (height < minHeight || height > maxHeight) {
+          setToastMessage(
+            `Logo height must be between ${minHeight}px and ${maxHeight}px. Your image is ${height}px tall.`
+          );
+          setShowToast(true);
+          resolve(false);
+          return;
+        }
+
+        resolve(true);
+      };
+
+      img.onerror = () => {
+        setToastMessage("Unable to load image. Please try a different file.");
+        setShowToast(true);
+        resolve(false);
+      };
+
+      if (logoUploadPreview) {
+        img.src = logoUploadPreview;
+      }
+    });
+  };
+
+  const handleSaveUploadedLogo = async () => {
+    if (!selectedLogoFile || !logoUploadPreview) {
+      setToastMessage("Please select a file first.");
+      setShowToast(true);
+      return;
+    }
+
+    // Validate image dimensions
+    const isValidDimensions = await validateLogoImageDimensions(
+      selectedLogoFile
+    );
+    if (!isValidDimensions) {
+      return;
+    }
+
+    try {
+      const logoName = selectedLogoFile.name.split(".")[0] || "Logo";
+      handleSaveLogo(logoUploadPreview, logoName);
+
+      setShowUploadLogoModal(false);
+      setSelectedLogoFile(null);
+      setLogoUploadPreview(null);
+    } catch (error) {
+      setToastMessage("Error saving logo. Please try again.");
+      setShowToast(true);
+    }
+  };
+
+  const handleCloseLogoUploadModal = () => {
+    setShowUploadLogoModal(false);
+    setSelectedLogoFile(null);
+    setLogoUploadPreview(null);
+  };
+
   const handleNotificationPermission = async () => {
     try {
-      const permission = await requestPermission();
-      setNotificationPermission(permission);
-
-      if (permission === "granted") {
-        await subscribe();
-        setToastMessage("Notifications enabled successfully!");
-      } else {
-        setToastMessage("Notification permission denied");
-      }
+      // Push notifications disabled in local-only mode
+      setToastMessage("Push notifications are disabled in local-only mode");
       setShowToast(true);
+      // const permission = await requestPermission();
+      // setNotificationPermission(permission);
+
+      // if (permission === "granted") {
+      //   await subscribe();
+      //   setToastMessage("Notifications enabled successfully!");
+      // } else {
+      //   setToastMessage("Notification permission denied");
+      // }
+      // setShowToast(true);
     } catch (error) {
       setToastMessage("Failed to enable notifications");
       setShowToast(true);
     }
   };
 
+  const handleResetOnboarding = () => {
+    resetUserOnboarding();
+    setShowResetToast(true);
+  };
+
+  const handleAutoSaveToggle = (enabled: boolean) => {
+    setGlobalAutoSaveEnabled(enabled);
+    setAutoSaveEnabled(enabled);
+    setToastMessage(`Auto-save ${enabled ? 'enabled' : 'disabled'} by default for new files`);
+    setShowToast(true);
+  };
+
   React.useEffect(() => {
-    getPermissionState().then((state) => {
-      setNotificationPermission(state.permission);
-    });
+    // Push notifications disabled in local-only mode
+    // getPermissionState().then((state) => {
+    //   setNotificationPermission(state.permission);
+    // });
   }, []);
 
   return (
@@ -730,18 +832,17 @@ const SettingsPage: React.FC = () => {
     >
       <IonHeader>
         <IonToolbar>
-          <IonTitle style={{ fontWeight: "bold", fontSize: "1.3em" }}>
-            Account Settings
-          </IonTitle>
-          <IonButtons slot="end">
-            <IonButton
-              fill="clear"
-              onClick={toggleDarkMode}
-              style={{ fontSize: "1.5em" }}
+          <IonButtons slot="start">
+            <IonButton 
+              fill="clear" 
+              onClick={() => history.push("/app/files")}
             >
-              <IonIcon icon={isDarkMode ? sunny : moon} />
+              <IonIcon icon={arrowBack} />
             </IonButton>
           </IonButtons>
+          <IonTitle style={{ fontWeight: "bold", fontSize: "1.3em" }}>
+            Settings
+          </IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent
@@ -751,112 +852,135 @@ const SettingsPage: React.FC = () => {
         }
       >
         <div className="settings-container">
-          {/* Authentication Section */}
-          <div className="auth-section">
+          <div
+            className={`signature-section ${isDarkMode ? "" : "light-mode"}`}
+          >
+            {/* Settings Card */}
             <IonCard
-              className={isDarkMode ? "auth-card-dark" : "auth-card-light"}
+              className={
+                isDarkMode ? "settings-card-dark" : "settings-card-light"
+              }
             >
-              <div
+              <IonCardHeader
                 className={
-                  isDarkMode ? "auth-header-dark" : "auth-header-light"
+                  isDarkMode
+                    ? "settings-card-header-dark"
+                    : "settings-card-header-light"
                 }
               >
-                <h2 className="auth-title">
-                  <IonIcon icon={personCircle} />
-                  Account Management
-                </h2>
-                <p className="auth-subtitle">
-                  {cloudService.isAuthenticated()
-                    ? "Manage your cloud storage account"
-                    : "Connect to access cloud features"}
-                </p>
-              </div>
-              <div className="auth-content">
-                {cloudService.isAuthenticated() ? (
-                  <>
-                    <div
-                      className={`auth-status-message ${
-                        isDarkMode ? "success-dark" : "success-light"
-                      }`}
-                    >
-                      <IonIcon
-                        icon={checkmarkCircle}
-                        style={{ marginRight: "8px", fontSize: "1.2em" }}
-                      />
-                      You are successfully logged in to your cloud account
-                    </div>
-                    {cloudService.getCurrentUserInfo() && (
-                      <div
-                        style={{
-                          padding: "12px",
-                          marginBottom: "16px",
-                          borderRadius: "8px",
-                          backgroundColor: isDarkMode ? "#1a1a1a" : "#f5f5f5",
-                          border: `1px solid ${isDarkMode ? "#333" : "#ddd"}`,
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: "0.9em",
-                            color: isDarkMode ? "#8b949e" : "#656d76",
-                          }}
-                        >
-                          Logged in as:
-                        </div>
-                        <div style={{ fontWeight: "bold", marginTop: "4px" }}>
-                          {cloudService.getCurrentUserInfo()?.email}
-                        </div>
-                      </div>
-                    )}
-                    <div className="auth-buttons-container">
-                      <IonButton
-                        className={`auth-button logout ${
-                          isDarkMode ? "dark" : "light"
-                        }`}
-                        onClick={handleLogout}
-                        disabled={isLoading}
-                      >
-                        <IonIcon icon={logOut} slot="start" />
-                        {isLoading ? "Logging out..." : "Logout"}
-                      </IonButton>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <p
+                <IonCardTitle
+                  className={
+                    isDarkMode
+                      ? "settings-card-title-dark"
+                      : "settings-card-title-light"
+                  }
+                >
+                  <IonIcon
+                    icon={settings}
+                    style={{ marginRight: "8px", fontSize: "1.5em" }}
+                  />
+                  Preferences
+                </IonCardTitle>
+              </IonCardHeader>
+              <IonCardContent>
+                <IonList>
+                  <IonItem>
+                    <IonIcon icon={flash} slot="start" />
+                    <IonLabel>
+                      <h3>Auto-save by Default</h3>
+                      <p>Enable auto-save for newly opened files</p>
+                    </IonLabel>
+                    <IonToggle
+                      slot="end"
+                      checked={globalAutoSaveEnabled}
+                      onIonChange={(e) => handleAutoSaveToggle(e.detail.checked)}
+                    />
+                  </IonItem>
+                  <IonItem button onClick={handleResetOnboarding}>
+                    <IonIcon icon={informationCircle} slot="start" />
+                    <IonLabel>
+                      <h3>Reset Onboarding</h3>
+                      <p>Show landing page on next visit</p>
+                    </IonLabel>
+                  </IonItem>
+                </IonList>
+              </IonCardContent>
+            </IonCard>
+          </div>
+
+          {/* PWA Status Card */}
+          <div className="signature-section" style={{ marginBottom: "20px" }}>
+            <IonCard
+              className={
+                isDarkMode ? "settings-card-dark" : "settings-card-light"
+              }
+            >
+              <IonCardHeader
+                className={
+                  isDarkMode
+                    ? "settings-card-header-dark"
+                    : "settings-card-header-light"
+                }
+              >
+                <IonCardTitle
+                  className={
+                    isDarkMode
+                      ? "settings-card-title-dark"
+                      : "settings-card-title-light"
+                  }
+                >
+                  <IonIcon
+                    icon={wifiOutline}
+                    style={{ marginRight: "8px", fontSize: "1.5em" }}
+                  />
+                  App Status
+                </IonCardTitle>
+              </IonCardHeader>
+              <IonCardContent>
+                <IonList>
+                  <IonItem>
+                    <IonIcon
+                      icon={isOnline ? wifiOutline : cloudOfflineOutline}
+                      slot="start"
                       style={{
-                        textAlign: "center",
-                        marginBottom: "20px",
-                        color: isDarkMode ? "#8b949e" : "#656d76",
+                        color: isOnline ? "#28ba62" : "#f04141",
                       }}
-                    >
-                      Please login to access your server files and sync your
-                      data across devices.
-                    </p>
-                    <div className="auth-buttons-container">
-                      <IonButton
-                        className={`auth-button primary ${
-                          isDarkMode ? "dark" : "light"
-                        }`}
-                        onClick={() => setShowLoginModal(true)}
-                      >
-                        <IonIcon icon={logIn} slot="start" />
-                        Login
-                      </IonButton>
-                      <IonButton
-                        className={`auth-button secondary ${
-                          isDarkMode ? "dark" : "light"
-                        }`}
-                        fill="outline"
-                        onClick={() => setShowRegisterModal(true)}
-                      >
-                        <IonIcon icon={personAdd} slot="start" />
-                        Register
-                      </IonButton>
-                    </div>
-                  </>
-                )}
-              </div>
+                    />
+                    <IonLabel>
+                      <h3>Connection Status</h3>
+                      <p>{isOnline ? "Online" : "Offline"}</p>
+                    </IonLabel>
+                  </IonItem>
+
+                  {isInstallable && !isInstalled && (
+                    <IonItem button onClick={installApp}>
+                      <IonIcon
+                        icon={downloadOutline}
+                        slot="start"
+                        style={{ color: "#3880ff" }}
+                      />
+                      <IonLabel>
+                        <h3>Install App</h3>
+                        <p>Install as a Progressive Web App</p>
+                      </IonLabel>
+                    </IonItem>
+                  )}
+
+                  {isInstalled && (
+                    <IonItem>
+                      <IonIcon
+                        icon={checkmark}
+                        slot="start"
+                        style={{ color: "#28ba62" }}
+                      />
+                      <IonLabel>
+                        <h3>App Installed</h3>
+                        <p>Running as installed PWA</p>
+                      </IonLabel>
+                    </IonItem>
+                  )}
+                </IonList>
+              </IonCardContent>
             </IonCard>
           </div>
 
@@ -1099,29 +1223,10 @@ const SettingsPage: React.FC = () => {
             </IonCard>
           </div>
 
-          <IonHeader collapse="condense">
-            <IonToolbar>
-              <IonTitle size="large">Menu & Settings</IonTitle>
-              <IonButtons slot="end">
-                <IonButton
-                  fill="clear"
-                  onClick={toggleDarkMode}
-                  style={{ fontSize: "1.5em" }}
-                >
-                  <IonIcon icon={isDarkMode ? sunny : moon} />
-                </IonButton>
-              </IonButtons>
-            </IonToolbar>
-          </IonHeader>
-
-          <div
-            className={`menu-page-container ${isDarkMode ? "" : "light-mode"}`}
-          >
-            {/* Settings Card */}
+          {/* Logo Section */}
+          <div className="logo-section" style={{ marginBottom: "20px" }}>
             <IonCard
-              className={
-                isDarkMode ? "settings-card-dark" : "settings-card-light"
-              }
+              className={isDarkMode ? "auth-card-dark" : "auth-card-light"}
             >
               <IonCardHeader
                 className={
@@ -1129,6 +1234,7 @@ const SettingsPage: React.FC = () => {
                     ? "settings-card-header-dark"
                     : "settings-card-header-light"
                 }
+                style={{ marginBottom: "20px" }}
               >
                 <IonCardTitle
                   className={
@@ -1138,480 +1244,200 @@ const SettingsPage: React.FC = () => {
                   }
                 >
                   <IonIcon
-                    icon={settings}
+                    icon={imageOutline}
                     style={{ marginRight: "8px", fontSize: "1.5em" }}
                   />
-                  Preferences
+                  Manage Logos
                 </IonCardTitle>
               </IonCardHeader>
               <IonCardContent>
-                <IonList>
-                  <IonItem>
-                    <IonIcon icon={isDarkMode ? moon : sunny} slot="start" />
-                    <IonLabel>Dark Mode</IonLabel>
-                    <IonToggle
-                      checked={isDarkMode}
-                      onIonChange={(e) => toggleDarkMode()}
-                      slot="end"
-                    />
-                  </IonItem>
-                </IonList>
-              </IonCardContent>
-            </IonCard>
-
-            {/* PWA Status Card */}
-            <IonCard
-              className={
-                isDarkMode ? "settings-card-dark" : "settings-card-light"
-              }
-            >
-              <IonCardHeader
-                className={
-                  isDarkMode
-                    ? "settings-card-header-dark"
-                    : "settings-card-header-light"
-                }
-              >
-                <IonCardTitle
-                  className={
-                    isDarkMode
-                      ? "settings-card-title-dark"
-                      : "settings-card-title-light"
-                  }
-                >
-                  <IonIcon
-                    icon={downloadOutline}
-                    style={{ marginRight: "8px", fontSize: "1.5em" }}
-                  />
-                  PWA Features
-                </IonCardTitle>
-              </IonCardHeader>
-              <IonCardContent>
-                <IonList>
-                  <IonItem>
-                    <IonIcon
-                      icon={downloadOutline}
-                      slot="start"
-                      color={
-                        isInstallable && !isInstalled ? "success" : "medium"
-                      }
-                    />
-                    <IonLabel>
-                      <h2>App Installation</h2>
-                      <p>
-                        {isInstalled
-                          ? "✓ App is installed"
-                          : isInstallable
-                          ? "Ready to install - Click to add to home screen"
-                          : "Installation not available (may already be installed)"}
-                      </p>
-                    </IonLabel>
-                    {isInstallable && !isInstalled && (
-                      <IonButton
-                        fill="outline"
-                        size="small"
-                        onClick={async () => {
-                          const success = await installApp();
-                          if (success) {
-                            setToastMessage("App installed successfully!");
-                            setShowToast(true);
-                          }
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
+                  {/* None option */}
+                  <div
+                    style={{
+                      width: "150px",
+                      height: "80px",
+                      border: `2px solid ${
+                        selectedLogoId === null
+                          ? isDarkMode
+                            ? "#4c8dff"
+                            : "#3880ff"
+                          : isDarkMode
+                          ? "#555"
+                          : "#ddd"
+                      }`,
+                      borderRadius: "8px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                      backgroundColor:
+                        selectedLogoId === null
+                          ? isDarkMode
+                            ? "#1a2332"
+                            : "#e3f2fd"
+                          : "transparent",
+                      position: "relative",
+                    }}
+                    onClick={() => handleSelectLogo(null)}
+                  >
+                    <span
+                      style={{
+                        color: isDarkMode ? "#8b949e" : "#656d76",
+                        fontSize: "0.9rem",
+                      }}
+                    >
+                      None
+                    </span>
+                    {selectedLogoId === null && (
+                      <IonIcon
+                        icon={checkmark}
+                        style={{
+                          position: "absolute",
+                          top: "8px",
+                          right: "8px",
+                          color: isDarkMode ? "#4c8dff" : "#3880ff",
+                          fontSize: "1.2rem",
                         }}
-                        slot="end"
-                      >
-                        Install
-                      </IonButton>
+                      />
                     )}
-                  </IonItem>
+                  </div>
 
-                  <IonItem>
-                    <IonIcon
-                      icon={isOnline ? wifiOutline : cloudOfflineOutline}
-                      slot="start"
-                      color={isOnline ? "success" : "warning"}
-                    />
-                    <IonLabel>
-                      <h2>Connection Status</h2>
-                      <p>
-                        {isOnline
-                          ? "✓ Online - All features available"
-                          : "⚠ Offline - Limited functionality"}
-                      </p>
-                    </IonLabel>
-                  </IonItem>
+                  {/* Saved logos */}
+                  {savedLogos.map((logo) => (
+                    <div
+                      key={logo.id}
+                      style={{
+                        width: "150px",
+                        height: "80px",
+                        border: `2px solid ${
+                          selectedLogoId === logo.id
+                            ? isDarkMode
+                              ? "#4c8dff"
+                              : "#3880ff"
+                            : isDarkMode
+                            ? "#555"
+                            : "#ddd"
+                        }`,
+                        borderRadius: "8px",
+                        position: "relative",
+                        cursor: "pointer",
+                        backgroundColor:
+                          selectedLogoId === logo.id
+                            ? isDarkMode
+                              ? "#1a2332"
+                              : "#e3f2fd"
+                            : "transparent",
+                        overflow: "hidden",
+                      }}
+                      onClick={() => handleSelectLogo(logo.id)}
+                    >
+                      <img
+                        src={logo.data}
+                        alt="Logo"
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "contain",
+                          padding: "4px",
+                          backgroundColor: "white",
+                        }}
+                      />
 
-                  <IonItem>
-                    <IonIcon
-                      icon={notifications}
-                      slot="start"
-                      color={
-                        notificationPermission === "granted"
-                          ? "success"
-                          : "medium"
-                      }
-                    />
-                    <IonLabel>
-                      <h2>Push Notifications</h2>
-                      <p>
-                        {notificationPermission === "granted"
-                          ? "✓ Enabled - You'll receive updates"
-                          : "Enable notifications for app updates"}
-                      </p>
-                    </IonLabel>
-                    {notificationPermission !== "granted" && (
-                      <IonButton
-                        fill="outline"
-                        size="small"
-                        onClick={handleNotificationPermission}
-                        slot="end"
-                      >
-                        Enable
-                      </IonButton>
-                    )}
-                  </IonItem>
-
-                  <IonItem>
-                    <IonIcon
-                      icon={cloudDoneOutline}
-                      slot="start"
-                      color="success"
-                    />
-                    <IonLabel>
-                      <h2>Offline Storage</h2>
-                      <p>✓ Your data is saved locally and syncs when online</p>
-                    </IonLabel>
-                  </IonItem>
-
-                  <IonItem>
-                    <IonIcon
-                      icon={refreshOutline}
-                      slot="start"
-                      color="success"
-                    />
-                    <IonLabel>
-                      <h2>Auto Updates</h2>
-                      <p>✓ App updates automatically in the background</p>
-                    </IonLabel>
-                  </IonItem>
-                </IonList>
-              </IonCardContent>
-            </IonCard>
-
-            {/* Wallet Connection Card */}
-            <IonCard
-              className={
-                isDarkMode ? "settings-card-dark" : "settings-card-light"
-              }
-            >
-              <IonCardHeader
-                className={
-                  isDarkMode
-                    ? "settings-card-header-dark"
-                    : "settings-card-header-light"
-                }
-              >
-                <IonCardTitle
-                  className={
-                    isDarkMode
-                      ? "settings-card-title-dark"
-                      : "settings-card-title-light"
-                  }
-                >
-                  <IonIcon
-                    icon={wallet}
-                    style={{ marginRight: "8px", fontSize: "1.5em" }}
-                  />
-                  Wallet Connection
-                </IonCardTitle>
-              </IonCardHeader>
-              <IonCardContent>
-                <IonList>
-                  {!isConnected ? (
-                    <>
-                      <IonItem lines="none">
-                        <IonLabel>
-                          <h2>Connect Wallet</h2>
-                          <p>
-                            Connect your StarkNet wallet to save files to
-                            blockchain
-                          </p>
-                        </IonLabel>
-                      </IonItem>
-                      {connectors.map((connector) => (
-                        <IonItem key={connector.id}>
-                          <IonIcon icon={wallet} slot="start" color="primary" />
-                          <IonLabel>
-                            <h3>{connector.name}</h3>
-                            <p>{connector.id}</p>
-                          </IonLabel>
-                          <IonButton
-                            fill="outline"
-                            size="small"
-                            onClick={() => connect({ connector })}
-                            slot="end"
-                          >
-                            Connect
-                          </IonButton>
-                        </IonItem>
-                      ))}
-                    </>
-                  ) : (
-                    <>
-                      <IonItem>
+                      {/* Selection checkmark */}
+                      {selectedLogoId === logo.id && (
                         <IonIcon
-                          icon={checkmarkCircle}
-                          slot="start"
-                          color="success"
+                          icon={checkmark}
+                          style={{
+                            position: "absolute",
+                            top: "8px",
+                            right: "8px",
+                            color: isDarkMode ? "#4c8dff" : "#3880ff",
+                            fontSize: "1.2rem",
+                            backgroundColor: "white",
+                            borderRadius: "50%",
+                            padding: "2px",
+                          }}
                         />
-                        <IonLabel>
-                          <h2>Wallet Connected</h2>
-                          <p>
-                            Address: {address?.slice(0, 6)}...
-                            {address?.slice(-4)}
-                          </p>
-                        </IonLabel>
+                      )}
+
+                      {/* Action buttons */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          bottom: "4px",
+                          right: "4px",
+                          display: "flex",
+                          gap: "2px",
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <IonButton
-                          fill="outline"
+                          fill="clear"
                           size="small"
-                          color="danger"
-                          onClick={() => disconnect()}
-                          slot="end"
+                          onClick={() => handleDeleteLogo(logo.id)}
+                          style={{
+                            "--color": "#eb445a",
+                            "--padding-start": "4px",
+                            "--padding-end": "4px",
+                            height: "24px",
+                            minHeight: "24px",
+                          }}
                         >
-                          Disconnect
+                          <IonIcon
+                            icon={trash}
+                            style={{ fontSize: "0.9rem" }}
+                          />
                         </IonButton>
-                      </IonItem>
-                      {fileLimits &&
-                        Array.isArray(fileLimits) &&
-                        fileLimits.length >= 2 && (
-                          <IonItem>
-                            <IonIcon
-                              icon={cloudUpload}
-                              slot="start"
-                              color="primary"
-                            />
-                            <IonLabel>
-                              <h3>Blockchain Storage</h3>
-                              <p>
-                                Files Used: {fileLimits[0].toString()}/
-                                {fileLimits[1].toString()}
-                              </p>
-                              {fileLimits[0] >= fileLimits[1] && (
-                                <p
-                                  style={{ color: "var(--ion-color-warning)" }}
-                                >
-                                  Storage limit reached. Consider upgrading.
-                                </p>
-                              )}
-                            </IonLabel>
-                          </IonItem>
-                        )}
-                    </>
-                  )}
-                </IonList>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {savedLogos.length === 0 && (
+                  <p
+                    style={{
+                      textAlign: "center",
+                      marginTop: "20px",
+                      color: isDarkMode ? "#8b949e" : "#656d76",
+                    }}
+                  >
+                    No logos uploaded yet. Click "Upload" to upload your first
+                    logo.
+                  </p>
+                )}
+
+                {/* Action buttons at bottom */}
+                <div
+                  style={{
+                    marginTop: "16px",
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    gap: "8px",
+                  }}
+                >
+                  <IonButton
+                    fill="outline"
+                    size="small"
+                    onClick={handleAddLogo}
+                    disabled={savedLogos.length >= 3}
+                    style={{
+                      "--border-radius": "20px",
+                      minWidth: "80px",
+                    }}
+                  >
+                    <IonIcon icon={cloudUploadOutline} slot="start" />
+                    {savedLogos.length >= 3 ? "Max Reached" : "Upload"}
+                  </IonButton>
+                </div>
               </IonCardContent>
             </IonCard>
-
-            {/* PWA Demo Component */}
-            <PWADemo />
           </div>
         </div>
 
         {/* Menu Component (Action Sheet) */}
         <Menu showM={showMenu} setM={() => setShowMenu(false)} />
       </IonContent>
-
-      {/* Login Modal */}
-      <IonModal
-        isOpen={showLoginModal}
-        onDidDismiss={() => setShowLoginModal(false)}
-        className={isDarkMode ? "auth-modal-dark" : "auth-modal-light"}
-      >
-        <IonHeader>
-          <IonToolbar className="auth-modal-header">
-            <IonTitle className="auth-modal-title">
-              <IonIcon icon={logIn} style={{ marginRight: "8px" }} />
-              Welcome Back
-            </IonTitle>
-            <IonButton
-              slot="end"
-              fill="clear"
-              color="light"
-              onClick={() => setShowLoginModal(false)}
-            >
-              Cancel
-            </IonButton>
-          </IonToolbar>
-        </IonHeader>
-        <IonContent className="auth-modal-content">
-          <div style={{ padding: "24px" }}>
-            <div className="auth-input-container">
-              <IonInput
-                className={`auth-input ${isDarkMode ? "dark" : "light"}`}
-                label=""
-                labelPlacement="stacked"
-                type="email"
-                value={loginCredentials.email}
-                onIonInput={(e) =>
-                  setLoginCredentials({
-                    ...loginCredentials,
-                    email: e.detail.value!,
-                  })
-                }
-                placeholder="Enter your email address"
-                required
-              />
-            </div>
-            <div className="auth-input-container">
-              <IonInput
-                className={`auth-input ${isDarkMode ? "dark" : "light"}`}
-                label=""
-                labelPlacement="stacked"
-                type="password"
-                value={loginCredentials.password}
-                onIonInput={(e) =>
-                  setLoginCredentials({
-                    ...loginCredentials,
-                    password: e.detail.value!,
-                  })
-                }
-                placeholder="Enter your password"
-                required
-              />
-            </div>
-            <IonButton
-              expand="block"
-              onClick={handleLogin}
-              className="auth-submit-button"
-              color="primary"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                "Signing In..."
-              ) : (
-                <>
-                  <IonIcon icon={logIn} slot="start" />
-                  Sign In
-                </>
-              )}
-            </IonButton>
-            <div style={{ textAlign: "center", marginTop: "16px" }}>
-              <IonButton
-                fill="clear"
-                size="small"
-                onClick={() => {
-                  setShowLoginModal(false);
-                  setShowRegisterModal(true);
-                }}
-              >
-                Don't have an account? Register here
-              </IonButton>
-            </div>
-          </div>
-        </IonContent>
-      </IonModal>
-
-      {/* Register Modal */}
-      <IonModal
-        isOpen={showRegisterModal}
-        onDidDismiss={() => setShowRegisterModal(false)}
-        className={isDarkMode ? "auth-modal-dark" : "auth-modal-light"}
-      >
-        <IonHeader>
-          <IonToolbar className="auth-modal-header">
-            <IonTitle className="auth-modal-title">
-              <IonIcon icon={personAdd} style={{ marginRight: "8px" }} />
-              Create Account
-            </IonTitle>
-            <IonButton
-              slot="end"
-              fill="clear"
-              color="light"
-              onClick={() => setShowRegisterModal(false)}
-            >
-              Cancel
-            </IonButton>
-          </IonToolbar>
-        </IonHeader>
-        <IonContent className="auth-modal-content">
-          <div style={{ padding: "24px" }}>
-            <div className="auth-input-container">
-              <IonInput
-                className={`auth-input ${isDarkMode ? "dark" : "light"}`}
-                label=""
-                labelPlacement="stacked"
-                type="text"
-                value={registerCredentials.name}
-                onIonInput={(e) =>
-                  setRegisterCredentials({
-                    ...registerCredentials,
-                    name: e.detail.value!,
-                  })
-                }
-                placeholder="Enter your full name"
-                required
-              />
-            </div>
-            <div className="auth-input-container">
-              <IonInput
-                className={`auth-input ${isDarkMode ? "dark" : "light"}`}
-                type="email"
-                value={registerCredentials.email}
-                onIonInput={(e) =>
-                  setRegisterCredentials({
-                    ...registerCredentials,
-                    email: e.detail.value!,
-                  })
-                }
-                placeholder="Enter your email address"
-                required
-              />
-            </div>
-            <div className="auth-input-container">
-              <IonInput
-                className={`auth-input ${isDarkMode ? "dark" : "light"}`}
-                type="password"
-                value={registerCredentials.password}
-                onIonInput={(e) =>
-                  setRegisterCredentials({
-                    ...registerCredentials,
-                    password: e.detail.value!,
-                  })
-                }
-                placeholder="Choose a secure password"
-                required
-              />
-            </div>
-            <IonButton
-              expand="block"
-              onClick={handleRegister}
-              className="auth-submit-button"
-              color="primary"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                "Creating Account..."
-              ) : (
-                <>
-                  <IonIcon icon={personAdd} slot="start" />
-                  Create Account
-                </>
-              )}
-            </IonButton>
-            <div style={{ textAlign: "center", marginTop: "16px" }}>
-              <IonButton
-                fill="clear"
-                size="small"
-                onClick={() => {
-                  setShowRegisterModal(false);
-                  setShowLoginModal(true);
-                }}
-              >
-                Already have an account? Sign in here
-              </IonButton>
-            </div>
-          </div>
-        </IonContent>
-      </IonModal>
 
       {/* Signature Modal */}
       <IonModal
@@ -2011,6 +1837,196 @@ const SettingsPage: React.FC = () => {
         </IonContent>
       </IonModal>
 
+      {/* Upload Logo Modal */}
+      <IonModal
+        isOpen={showUploadLogoModal}
+        onDidDismiss={handleCloseLogoUploadModal}
+        className={isDarkMode ? "auth-modal-dark" : "auth-modal-light"}
+      >
+        <IonHeader>
+          <IonToolbar className="auth-modal-header">
+            <IonTitle className="auth-modal-title">
+              <IonIcon
+                icon={cloudUploadOutline}
+                style={{ marginRight: "8px" }}
+              />
+              Upload Logo
+            </IonTitle>
+            <IonButton
+              slot="end"
+              fill="clear"
+              color="light"
+              onClick={handleCloseLogoUploadModal}
+              style={{ fontSize: "20px", minWidth: "40px", minHeight: "40px" }}
+            >
+              ✕
+            </IonButton>
+          </IonToolbar>
+        </IonHeader>
+        <IonContent className="auth-modal-content">
+          <div style={{ padding: "24px" }}>
+            {/* File Upload Section */}
+            <div style={{ marginBottom: "20px" }}>
+              <div
+                style={{
+                  border: "2px dashed #ccc",
+                  borderRadius: "8px",
+                  padding: "20px",
+                  textAlign: "center",
+                  backgroundColor: isDarkMode ? "#1a1a1a" : "#f9f9f9",
+                }}
+              >
+                <IonIcon
+                  icon={imageOutline}
+                  style={{
+                    fontSize: "48px",
+                    color: "#ccc",
+                    marginBottom: "16px",
+                  }}
+                />
+                <h3
+                  style={{
+                    margin: "0 0 8px 0",
+                    color: isDarkMode ? "#fff" : "#000",
+                  }}
+                >
+                  Upload Logo Image
+                </h3>
+                <p
+                  style={{
+                    margin: "0 0 16px 0",
+                    color: isDarkMode ? "#8b949e" : "#656d76",
+                    fontSize: "14px",
+                  }}
+                >
+                  Select an image file for your logo
+                </p>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoFileSelect}
+                  style={{ display: "none" }}
+                  id="logo-upload-input"
+                />
+                <IonButton
+                  fill="outline"
+                  onClick={() =>
+                    document.getElementById("logo-upload-input")?.click()
+                  }
+                >
+                  <IonIcon icon={cloudUploadOutline} slot="start" />
+                  Choose File
+                </IonButton>
+              </div>
+
+              {/* Requirements */}
+              <div style={{ marginTop: "16px" }}>
+                <h4
+                  style={{
+                    margin: "0 0 8px 0",
+                    fontSize: "14px",
+                    color: isDarkMode ? "#fff" : "#000",
+                  }}
+                >
+                  Requirements:
+                </h4>
+                <ul
+                  style={{
+                    margin: "0",
+                    paddingLeft: "16px",
+                    fontSize: "12px",
+                    color: isDarkMode ? "#8b949e" : "#656d76",
+                  }}
+                >
+                  <li>File size: Maximum 100KB</li>
+                  <li>Formats: PNG, JPG, JPEG, GIF, WebP, SVG</li>
+                  <li>Dimensions: 50-500px width, 30-500px height</li>
+                  <li>Clear, professional logo image</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Preview Section */}
+            {logoUploadPreview && selectedLogoFile && (
+              <div style={{ marginBottom: "20px" }}>
+                <h4
+                  style={{
+                    margin: "0 0 12px 0",
+                    fontSize: "16px",
+                    color: isDarkMode ? "#fff" : "#000",
+                  }}
+                >
+                  Preview
+                </h4>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "16px",
+                    padding: "16px",
+                    border: "1px solid #ddd",
+                    borderRadius: "8px",
+                    backgroundColor: isDarkMode ? "#2a2a2a" : "#f5f5f5",
+                  }}
+                >
+                  <img
+                    src={logoUploadPreview}
+                    alt="Logo preview"
+                    style={{
+                      maxWidth: "100px",
+                      maxHeight: "60px",
+                      objectFit: "contain",
+                      border: "1px solid #ddd",
+                      backgroundColor: "white",
+                      padding: "4px",
+                    }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <p
+                      style={{
+                        margin: "0",
+                        fontSize: "14px",
+                        color: isDarkMode ? "#fff" : "#000",
+                      }}
+                    >
+                      File: {selectedLogoFile.name} (
+                      {Math.round(selectedLogoFile.size / 1024)}KB)
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <IonGrid>
+              <IonRow>
+                <IonCol size="12" sizeMd="6">
+                  <IonButton
+                    expand="block"
+                    fill="outline"
+                    onClick={handleCloseLogoUploadModal}
+                  >
+                    Cancel
+                  </IonButton>
+                </IonCol>
+                <IonCol size="12" sizeMd="6">
+                  <IonButton
+                    expand="block"
+                    onClick={handleSaveUploadedLogo}
+                    disabled={!selectedLogoFile || !logoUploadPreview}
+                    className="auth-submit-button"
+                    color="primary"
+                  >
+                    <IonIcon icon={saveOutline} slot="start" />
+                    Save Logo
+                  </IonButton>
+                </IonCol>
+              </IonRow>
+            </IonGrid>
+          </div>
+        </IonContent>
+      </IonModal>
+
       {/* Color Picker Popover */}
       <IonPopover
         trigger="color-trigger"
@@ -2086,6 +2102,16 @@ const SettingsPage: React.FC = () => {
             ? "warning"
             : "danger"
         }
+      />
+
+      {/* Toast for reset onboarding confirmation */}
+      <IonToast
+        isOpen={showResetToast}
+        onDidDismiss={() => setShowResetToast(false)}
+        message="Onboarding reset! Landing page will show on next visit."
+        duration={3000}
+        position="bottom"
+        color="success"
       />
     </IonPage>
   );

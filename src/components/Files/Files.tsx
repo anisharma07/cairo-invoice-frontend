@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import "./Files.css";
 import * as AppGeneral from "../socialcalc/index.js";
-import { DATA } from "../../app-data.js";
+import { DATA } from "../../templates.js";
 import { File as LocalFile, Local } from "../Storage/LocalStorage";
 import {
   IonIcon,
@@ -27,6 +27,7 @@ import {
   IonCardContent,
   IonCardHeader,
   IonCardTitle,
+  IonCardSubtitle,
   IonModal,
   IonFab,
   IonFabButton,
@@ -35,6 +36,10 @@ import {
   IonItemSliding,
   IonItemOptions,
   IonItemOption,
+  IonChip,
+  IonGrid,
+  IonRow,
+  IonCol,
 } from "@ionic/react";
 import {
   trash,
@@ -51,25 +56,26 @@ import {
   swapVertical,
   create,
   ellipsisHorizontal,
+  add,
+  layers,
+  copyOutline,
 } from "ionicons/icons";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useHistory } from "react-router-dom";
-import { cloudService, ServerFile } from "../../services/cloud-service";
 import { useInvoice } from "../../contexts/InvoiceContext";
 import {
-  cleanServerFilename,
   formatDateForFilename,
   isQuotaExceededError,
   getQuotaExceededMessage,
 } from "../../utils/helper";
+import { tempMeta } from "../../templates-meta";
 import { useAccount } from "@starknet-react/core";
 import {
   useGetUserFiles,
   useGetUserFileLimits,
-  FileRecord,
 } from "../../hooks/useContractRead";
 import SubscriptionPlans from "../wallet/SubscriptionPlans";
-import { downloadFromIPFS } from "../../utils/ipfs";
+import { downloadFromIPFS, BlockchainFileMetadata } from "../../utils/ipfs";
 
 const Files: React.FC<{
   store: Local;
@@ -77,16 +83,19 @@ const Files: React.FC<{
   updateSelectedFile: Function;
   updateBillType: Function;
 }> = (props) => {
-  const { selectedFile, updateSelectedFile } = useInvoice();
+  const {
+    selectedFile,
+    updateSelectedFile,
+    activeTemplateData,
+    updateActiveTemplateData,
+  } = useInvoice();
   const { isDarkMode } = useTheme();
   const history = useHistory();
 
   const [showAlert1, setShowAlert1] = useState(false);
   const [currentKey, setCurrentKey] = useState<string | null>(null);
   const [showServerDeleteAlert, setShowServerDeleteAlert] = useState(false);
-  const [currentServerFile, setCurrentServerFile] = useState<ServerFile | null>(
-    null
-  );
+
   const [device] = useState(AppGeneral.getDeviceType());
 
   const [showRenameAlert, setShowRenameAlert] = useState(false);
@@ -103,9 +112,15 @@ const Files: React.FC<{
   >("dateModified");
   const [fileListContent, setFileListContent] = useState<React.ReactNode>(null);
 
-  // Server files state
-  const [serverFiles, setServerFiles] = useState<ServerFile[]>([]);
   const [serverFilesLoading, setServerFilesLoading] = useState(false);
+
+  // Template selection states - now using category instead of specific template
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<
+    string | "all"
+  >("all");
+
+  // Screen size state
+  const [isSmallScreen, setIsSmallScreen] = useState(false);
 
   // Blockchain state
   const { address } = useAccount();
@@ -125,136 +140,55 @@ const Files: React.FC<{
   const [loadingBlockchainFile, setLoadingBlockchainFile] = useState<
     string | null
   >(null);
-  const [isSavingAllToServer, setIsSavingAllToServer] = useState(false);
-  const [saveAllProgress, setSaveAllProgress] = useState("");
-  const [saveAllCount, setSaveAllCount] = useState({ current: 0, total: 0 });
-  const [isMovingAllToLocal, setIsMovingAllToLocal] = useState(false);
-  const [moveAllProgress, setMoveAllProgress] = useState("");
-  const [moveAllCount, setMoveAllCount] = useState({ current: 0, total: 0 });
 
-  const handleSaveUnsavedChanges = async () => {
-    // Save Default File Changes if not already saved
-    if (selectedFile === "default" && props.file !== "default") {
-      try {
-        const defaultExists = await props.store._checkKey("default");
-        if (defaultExists) {
-          const storedDefaultFile = await props.store._getFile("default");
+  // Template helper functions
+  const getAvailableTemplates = () => {
+    // map tempMeta.template_id and tempMeta.tempate_name with templateId and template resp
+    return tempMeta.map((template) => ({
+      templateId: template.template_id,
+      template: template.name,
+      ImageUri: template.ImageUri,
+    }));
+  };
 
-          // Decode the stored content
-          const storedContent = decodeURIComponent(storedDefaultFile.content);
-          const msc = DATA["home"][device]["msc"];
+  // Category helper functions
+  const categorizeTemplate = (template_id: number) => {
+    const metadata = tempMeta.find((meta) => meta.template_id === template_id);
+    if (!metadata?.category) return "web";
 
-          const hasUnsavedChanges = storedContent !== JSON.stringify(msc);
-          if (hasUnsavedChanges) {
-            console.log("Default file has unsaved changes, saving...");
-            // Save the current spreadsheet content to the default file
-            const currentContent = AppGeneral.getSpreadsheetContent();
-            const now = new Date().toISOString();
-
-            const untitledFileName =
-              "Untitled-" + formatDateForFilename(new Date());
-            const updatedDefaultFile = new LocalFile(
-              now, // created
-              now, // modified
-              encodeURIComponent(currentContent), // encoded content
-              untitledFileName, // new name for the default file
-              storedDefaultFile.billType, // keep the same billType
-              false // isEncrypted = false for default files
-            );
-            await props.store._saveFile(updatedDefaultFile);
-
-            // Clear Default File...
-            const templateContent = encodeURIComponent(JSON.stringify(msc));
-            const newDefaultFile = new LocalFile(
-              now,
-              now,
-              templateContent,
-              "default",
-              1
-            );
-            await props.store._saveFile(newDefaultFile);
-            setToastMessage(`Changes Saved as ${untitledFileName}`);
-            setShowToast(true);
-          }
-        }
-      } catch (error) {
-        console.error("Error saving default file changes:", error);
-
-        // Check if the error is due to storage quota exceeded
-        if (isQuotaExceededError(error)) {
-          setToastMessage(getQuotaExceededMessage("saving changes"));
-        } else {
-          setToastMessage("Failed to save default file changes");
-        }
-        setShowToast(true);
-      }
+    const category = metadata.category.toLowerCase();
+    if (category === "mobile") {
+      return "mobile";
+    } else if (category === "tablet") {
+      return "tablet";
+    } else {
+      return "web";
     }
   };
+
+  const getAvailableCategories = () => {
+    const categories = new Set<string>();
+    tempMeta.forEach((template) => {
+      if (template.category) {
+        categories.add(template.category);
+      }
+    });
+    return Array.from(categories).sort();
+  };
+
+  const getTemplateInfo = (templateId: number) => {
+    const template = DATA[templateId];
+    return template ? template.template : `Template ${templateId}`;
+  };
+
   // Edit local file
-  const editFile = async (key: string) => {
-    try {
-      console.log("Attempting to edit file:", key);
-
-      await handleSaveUnsavedChanges();
-
-      const data = await props.store._getFile(key);
-      console.log("File data retrieved:", {
-        name: data.name,
-        contentLength: data.content?.length,
-        billType: data.billType,
-        hasContent: !!data.content,
-      });
-
-      if (!data.content) {
-        setToastMessage("File content is empty or corrupted");
-        setShowToast(true);
-        return;
-      }
-      // console.log("billType:", data.billType);
-      // console.log("File CONTENT-------------->", data.content);
-      const decodedContent = decodeURIComponent(data.content);
-      // console.log("Decoded content:", decodedContent);
-      // console.log("Decoded content length:", decodedContent.length);
-      // console.log("Decoded content preview:", decodedContent.substring(0, 200));
-
-      // Ensure SocialCalc is properly initialized before loading the file
-      // First, try to get the current workbook control to see if it's initialized
-      try {
-        const currentControl = AppGeneral.getWorkbookInfo();
-        console.log("Current workbook info:", currentControl);
-
-        if (currentControl && currentControl.workbook) {
-          // SocialCalc is initialized, use viewFile
-          AppGeneral.viewFile(key, decodedContent);
-          console.log("File loaded successfully with viewFile");
-        } else {
-          // SocialCalc not initialized, initialize it first
-          console.log("SocialCalc not initialized, initializing...");
-          AppGeneral.initializeApp(decodedContent);
-          console.log("File loaded successfully with initializeApp");
-        }
-      } catch (error) {
-        console.error("Error checking SocialCalc state:", error);
-        // Fallback: try to initialize the app
-        try {
-          AppGeneral.initializeApp(decodedContent);
-          console.log("File loaded successfully with initializeApp (fallback)");
-        } catch (initError) {
-          console.error("initializeApp failed:", initError);
-          throw new Error(
-            "Failed to load file: SocialCalc initialization error"
-          );
-        }
-      }
-
-      props.updateSelectedFile(key);
-      props.updateBillType(data.billType);
-      history.push("/app/editor");
-    } catch (error) {
-      console.error("Error in editFile:", error);
-      setToastMessage("Failed to load file");
-      setShowToast(true);
-    }
+  const editFile = (key: string) => {
+    // Create a temporary anchor element to navigate
+    setTimeout(() => {
+      const link = document.createElement("a");
+      link.href = `/app/editor/${key}`;
+      link.click();
+    }, 50);
   };
 
   // Delete file
@@ -263,21 +197,13 @@ const Files: React.FC<{
     setCurrentKey(key);
   };
 
-  // Delete server file (with confirmation)
-  const deleteServerFile = (file: ServerFile) => {
-    setShowServerDeleteAlert(true);
-    setCurrentServerFile(file);
-  };
-
   // Edit blockchain file - retrieve from IPFS
-  const editBlockchainFile = async (file: FileRecord) => {
+  const editBlockchainFile = async (file: any) => {
     try {
       console.log("Attempting to edit blockchain file:", file.file_name);
       setLoadingBlockchainFile(file.file_name);
       setToastMessage("Loading file from IPFS...");
       setShowToast(true);
-
-      await handleSaveUnsavedChanges();
 
       // Download content from IPFS
       const content = await downloadFromIPFS(file.ipfs_cid);
@@ -295,14 +221,37 @@ const Files: React.FC<{
         return;
       }
 
-      // Parse the content - it should be a JSON string
+      // Parse the content - it should be a JSON object with metadata structure
       let parsedContent;
+      let fileMetadata;
       try {
         if (typeof content === "string") {
-          parsedContent = content;
+          fileMetadata = JSON.parse(content);
         } else {
-          // If content is an object, stringify it
-          parsedContent = JSON.stringify(content);
+          fileMetadata = content;
+        }
+        
+        // Check if this is the new metadata structure with separated content
+        if (fileMetadata && fileMetadata.content && fileMetadata.created) {
+          console.log("Loading file with metadata structure:", {
+            name: fileMetadata.name,
+            created: fileMetadata.created,
+            modified: fileMetadata.modified,
+            billType: fileMetadata.billType,
+            templateId: fileMetadata.templateId
+          });
+          
+          // Extract the spreadsheet content from metadata
+          parsedContent = JSON.stringify(fileMetadata.content);
+          
+          // Update bill type from metadata if available
+          if (fileMetadata.billType) {
+            props.updateBillType(fileMetadata.billType);
+          }
+        } else {
+          // Backward compatibility: treat as raw content
+          console.log("Loading file with legacy format");
+          parsedContent = JSON.stringify(fileMetadata);
         }
       } catch (parseError) {
         console.error("Error parsing IPFS content:", parseError);
@@ -317,33 +266,31 @@ const Files: React.FC<{
         console.log("Current workbook info:", currentControl);
 
         if (currentControl && currentControl.workbook) {
-          // SocialCalc is initialized, use viewFile
           AppGeneral.viewFile(file.file_name, parsedContent);
-          console.log("Blockchain file loaded successfully with viewFile");
         } else {
-          // SocialCalc not initialized, initialize it first
-          console.log("SocialCalc not initialized, initializing...");
-          AppGeneral.initializeApp(parsedContent);
-          console.log("Blockchain file loaded successfully with initializeApp");
+          console.log("Initializing SocialCalc before loading file");
+          AppGeneral.initializeApp();
+          setTimeout(() => {
+            AppGeneral.viewFile(file.file_name, parsedContent);
+          }, 100);
         }
       } catch (error) {
         console.error("Error checking SocialCalc state:", error);
         // Fallback: try to initialize the app
         try {
-          AppGeneral.initializeApp(parsedContent);
-          console.log(
-            "Blockchain file loaded successfully with initializeApp (fallback)"
-          );
+          AppGeneral.initializeApp();
+          setTimeout(() => {
+            AppGeneral.viewFile(file.file_name, parsedContent);
+          }, 100);
         } catch (initError) {
-          console.error("initializeApp failed:", initError);
-          throw new Error(
-            "Failed to load file: SocialCalc initialization error"
-          );
+          console.error("Error initializing SocialCalc:", initError);
+          setToastMessage("Failed to initialize editor");
+          setShowToast(true);
+          return;
         }
       }
 
-      props.updateSelectedFile(file.file_name);
-      props.updateBillType(1); // Assuming invoice type for blockchain files
+      updateSelectedFile(file.file_name);
       setToastMessage("File loaded successfully from blockchain!");
       setShowToast(true);
       history.push("/app/editor");
@@ -359,7 +306,7 @@ const Files: React.FC<{
   };
 
   // Download blockchain file from IPFS
-  const downloadBlockchainFile = async (file: FileRecord) => {
+  const downloadBlockchainFile = async (file: any) => {
     try {
       setToastMessage("Downloading file from IPFS...");
       setShowToast(true);
@@ -406,7 +353,7 @@ const Files: React.FC<{
   };
 
   // Move blockchain file to local storage
-  const moveBlockchainFileToLocal = async (file: FileRecord) => {
+  const moveBlockchainFileToLocal = async (file: any) => {
     try {
       setToastMessage("Moving file to local storage...");
       setShowToast(true);
@@ -422,14 +369,30 @@ const Files: React.FC<{
         return;
       }
 
-      // Parse the content - it should be a JSON string
+      // Parse the content and extract metadata if available
       let parsedContent;
+      let fileMetadata;
+      let billType = 1; // Default
       try {
         if (typeof content === "string") {
-          parsedContent = content;
+          fileMetadata = JSON.parse(content);
         } else {
-          // If content is an object, stringify it
-          parsedContent = JSON.stringify(content);
+          fileMetadata = content;
+        }
+        
+        // Check if this is the new metadata structure with separated content
+        if (fileMetadata && fileMetadata.content && fileMetadata.created) {
+          console.log("Moving file with metadata structure to local storage");
+          
+          // Extract the spreadsheet content from metadata
+          parsedContent = JSON.stringify(fileMetadata.content);
+          
+          // Extract metadata for local file
+          billType = fileMetadata.billType || 1;
+        } else {
+          // Backward compatibility: treat as raw content
+          console.log("Moving legacy format file to local storage");
+          parsedContent = JSON.stringify(fileMetadata);
         }
       } catch (parseError) {
         console.error("Error parsing IPFS content:", parseError);
@@ -450,15 +413,16 @@ const Files: React.FC<{
         filename = `${baseFilename}-${counter}`;
       }
 
-      // Create a local file object
+      // Create a local file object with metadata
       const now = new Date().toISOString();
       const encodedContent = encodeURIComponent(parsedContent);
       const localFile = new LocalFile(
-        now,
-        now,
+        fileMetadata?.created || now, // Preserve original creation date if available
+        now, // Update modified date
         encodedContent,
         filename,
-        1 // Default to invoice type
+        billType, // Use extracted bill type
+        fileMetadata?.templateId // Preserve template ID if available
       );
 
       // Save to local storage
@@ -489,13 +453,6 @@ const Files: React.FC<{
       }
       setShowToast(true);
     }
-  };
-
-  // Load default file
-  const loadDefault = () => {
-    const msc = DATA["home"][AppGeneral.getDeviceType()]["msc"];
-    AppGeneral.viewFile("default", JSON.stringify(msc));
-    props.updateSelectedFile("default");
   };
 
   // Format date with validation
@@ -663,434 +620,12 @@ const Files: React.FC<{
     });
   };
 
-  // Server files functions
-  const loadServerFiles = async () => {
-    if (!cloudService.isAuthenticated()) return;
-
-    setServerFilesLoading(true);
-    try {
-      const response = await cloudService.getFiles();
-      console.log("Server files loaded:", response);
-      setServerFiles(response.files);
-    } catch (error) {
-      setToastMessage("Failed to load server files");
-      setShowToast(true);
-    } finally {
-      setServerFilesLoading(false);
-    }
-  };
-
-  const handleFileDownload = async (file: ServerFile) => {
-    try {
-      const blob = await cloudService.downloadFileByName(file.filename);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = file.filename;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      setToastMessage("File downloaded successfully");
-      setShowToast(true);
-    } catch (error) {
-      setToastMessage(
-        error instanceof Error ? error.message : "Download failed"
-      );
-      setShowToast(true);
-    }
-  };
-
-  const handleFileDelete = async (fileId: number) => {
-    setDeletingFile(fileId);
-    try {
-      // Find the file by ID to get its filename
-      const file = serverFiles.find((f) => f.id === fileId);
-      if (!file) {
-        throw new Error("File not found");
-      }
-
-      await cloudService.deleteFileByName(file.filename);
-      setToastMessage("File deleted successfully");
-      setShowToast(true);
-      loadServerFiles();
-    } catch (error) {
-      setToastMessage(error instanceof Error ? error.message : "Delete failed");
-      setShowToast(true);
-    } finally {
-      setDeletingFile(null);
-    }
-  };
-
-  const handleMoveToLocal = async (file: ServerFile) => {
-    try {
-      setToastMessage("Moving file to local storage...");
-      setShowToast(true);
-
-      // Download the file from server
-      const blob = await cloudService.downloadFileByName(file.filename);
-
-      // Convert blob to text
-      const fileData = await blob.text();
-
-      if (fileData && file.filename) {
-        const localFileName = file.filename;
-        const encodedContent = encodeURIComponent(fileData);
-        console.log("Creating local file with:", {
-          fileName: localFileName,
-          contentLength: fileData.length,
-          encodedContentLength: encodedContent.length,
-          billType: 1,
-        });
-
-        // Validate the filename (basic check)
-        if (!localFileName || localFileName.trim() === "") {
-          setToastMessage("Invalid filename. Cannot move to local storage.");
-          setShowToast(true);
-          return;
-        }
-
-        // Check if file already exists locally
-        const fileExists = await props.store._checkKey(localFileName);
-        if (fileExists) {
-          setToastMessage(
-            `File "${localFileName}" already exists in local storage.`
-          );
-          setShowToast(true);
-          return;
-        }
-
-        // Create a local file
-        const now = new Date().toISOString();
-        const localFile = new LocalFile(
-          now,
-          now,
-          encodedContent, // Use URL-encoded content
-          localFileName, // Use filename as is
-          1,
-          false // isEncrypted = false for server files
-        );
-
-        console.log("Local file created:", {
-          name: localFile.name,
-          contentLength: localFile.content.length,
-          billType: localFile.billType,
-          created: localFile.created,
-          modified: localFile.modified,
-        });
-
-        // Save to local storage
-        await props.store._saveFile(localFile);
-        console.log("File saved to local storage successfully");
-
-        // Verify the file was saved correctly
-        const savedData = await props.store._getFile(localFileName);
-        console.log("Verification - saved file data:", {
-          name: savedData.name,
-          contentLength: savedData.content?.length,
-          billType: savedData.billType,
-          hasContent: !!savedData.content,
-        });
-
-        setToastMessage(`File moved to local storage as ${localFile.name}`);
-        setShowToast(true);
-
-        // Refresh the file list
-        await renderFileList();
-      } else {
-        console.error("Invalid file structure:", fileData);
-        setToastMessage("Invalid file format. Cannot move to local storage.");
-        setShowToast(true);
-      }
-    } catch (error) {
-      console.error("Error moving file to local storage:", error);
-
-      // Check if the error is due to storage quota exceeded
-      if (isQuotaExceededError(error)) {
-        setToastMessage(getQuotaExceededMessage("moving files from server"));
-      } else {
-        setToastMessage("Failed to move file to local storage");
-      }
-      setShowToast(true);
-    }
-  };
-
-  // Save all local files to server
-  const handleSaveAllToServer = async () => {
-    if (!cloudService.isAuthenticated()) {
-      setToastMessage("Please login to save files to server");
-      setShowToast(true);
-      return;
-    }
-
-    try {
-      setIsSavingAllToServer(true);
-      setSaveAllProgress("Preparing to save all files...");
-
-      // Get all local files and exclude the default file
-      const localFiles = await props.store._getAllFiles();
-      const filesArray = Object.keys(localFiles).filter(
-        (key) => key !== "default"
-      );
-
-      if (filesArray.length === 0) {
-        setToastMessage("No local files to save");
-        setShowToast(true);
-        return;
-      }
-
-      setSaveAllCount({ current: 0, total: filesArray.length });
-      setSaveAllProgress(`Saving 0 of ${filesArray.length} files...`);
-
-      let successCount = 0;
-      let errorCount = 0;
-      const errors: string[] = [];
-
-      for (let i = 0; i < filesArray.length; i++) {
-        const fileName = filesArray[i];
-        setSaveAllCount({ current: i + 1, total: filesArray.length });
-        setSaveAllProgress(
-          `Saving ${i + 1} of ${filesArray.length} files: ${fileName}`
-        );
-
-        try {
-          // Get file data
-          const fileData = await props.store._getFile(fileName);
-          if (!fileData || !fileData.content) {
-            errors.push(`${fileName} (empty or corrupted)`);
-            errorCount++;
-            continue;
-          }
-
-          let contentToUpload: string;
-
-          // Check if this is the currently selected/active file
-          // If so, get the live content from the spreadsheet instead of stored content
-          if (selectedFile === fileName) {
-            try {
-              // Get current live content from the spreadsheet (like Menu.tsx does)
-              contentToUpload = AppGeneral.getSpreadsheetContent();
-              console.log(`Using live content for active file: ${fileName}`);
-            } catch (error) {
-              console.log(
-                `Failed to get live content for ${fileName}, using stored content`
-              );
-              // Fallback to stored content if getting live content fails
-              contentToUpload = decodeURIComponent(fileData.content);
-            }
-          } else {
-            // For non-active files, use the stored content (decode it first)
-            contentToUpload = decodeURIComponent(fileData.content);
-          }
-
-          // Upload to server using the existing service
-          // Create a File object from the content
-          const fileBlob = new Blob([contentToUpload], {
-            type: "application/json",
-          });
-          const fileObject = new globalThis.File([fileBlob], fileName, {
-            type: "application/json",
-          });
-
-          await cloudService.uploadFile(fileObject);
-
-          successCount++;
-          console.log(`Successfully saved ${fileName} to server`);
-        } catch (error) {
-          errorCount++;
-          errors.push(
-            `${fileName} (${
-              error instanceof Error ? error.message : "unknown error"
-            })`
-          );
-          console.error(`Error saving ${fileName} to server:`, error);
-        }
-
-        // Small delay to prevent overwhelming the server
-        await new Promise((resolve) => setTimeout(resolve, 200));
-      }
-
-      // Show completion message
-      let message = `Save complete: ${successCount} files saved successfully`;
-      if (errorCount > 0) {
-        message += `, ${errorCount} failed`;
-        if (errors.length <= 3) {
-          message += `\nFailed files: ${errors.join(", ")}`;
-        } else {
-          message += `\nFirst 3 failed files: ${errors
-            .slice(0, 3)
-            .join(", ")}... and ${errors.length - 3} more`;
-        }
-      }
-
-      setToastMessage(message);
-      setShowToast(true);
-
-      // Refresh server files if we're viewing them
-      if (fileSource === "server") {
-        await loadServerFiles();
-      }
-    } catch (error) {
-      console.error("Error in save all to server:", error);
-      setToastMessage("Failed to save files to server");
-      setShowToast(true);
-    } finally {
-      setIsSavingAllToServer(false);
-      setSaveAllProgress("");
-      setSaveAllCount({ current: 0, total: 0 });
-    }
-  };
-
-  // Move all server files to local storage
-  const handleMoveAllToLocal = async () => {
-    if (!cloudService.isAuthenticated()) {
-      setToastMessage("Please login to access server files");
-      setShowToast(true);
-      return;
-    }
-
-    try {
-      setIsMovingAllToLocal(true);
-      setMoveAllProgress("Preparing to move all files...");
-
-      // Get all server files - all files are now invoice files
-      const invoiceFiles = serverFiles;
-
-      if (invoiceFiles.length === 0) {
-        setToastMessage("No invoice files found on server to move");
-        setShowToast(true);
-        return;
-      }
-
-      setMoveAllCount({ current: 0, total: invoiceFiles.length });
-      setMoveAllProgress(`Moving 0 of ${invoiceFiles.length} files...`);
-
-      let successCount = 0;
-      let errorCount = 0;
-      const errors: string[] = [];
-
-      for (let i = 0; i < invoiceFiles.length; i++) {
-        const file = invoiceFiles[i];
-        setMoveAllCount({ current: i + 1, total: invoiceFiles.length });
-        setMoveAllProgress(
-          `Moving ${i + 1} of ${invoiceFiles.length} files: ${file.filename}`
-        );
-
-        try {
-          // Download the file from server
-          const blob = await cloudService.downloadFileByName(file.filename);
-
-          const fileData = await blob.text();
-
-          if (fileData && file.filename) {
-            const localFileName = file.filename;
-            const encodedContent = encodeURIComponent(fileData);
-
-            // Validate the filename
-            if (!localFileName || localFileName.trim() === "") {
-              errors.push(`${file.filename} (invalid filename)`);
-              errorCount++;
-              continue;
-            }
-
-            // Check if file already exists locally
-            const fileExists = await props.store._checkKey(localFileName);
-            if (fileExists) {
-              errors.push(`${localFileName} (already exists locally)`);
-              errorCount++;
-              continue;
-            }
-            // Create a local file
-            const now = new Date().toISOString();
-            const localFile = new LocalFile(
-              now,
-              now,
-              encodedContent,
-              localFileName,
-              1,
-              false // isEncrypted = false for server files
-            );
-
-            // Save to local storage
-            await props.store._saveFile(localFile);
-            successCount++;
-            console.log(
-              `Successfully moved ${file.filename} to local storage as ${localFileName}`
-            );
-          } else {
-            errors.push(`${file.filename} (invalid file format)`);
-            errorCount++;
-            continue;
-          }
-        } catch (error) {
-          errorCount++;
-
-          // Check if the error is due to storage quota exceeded
-          if (isQuotaExceededError(error)) {
-            errors.push(`${file.filename} (storage quota exceeded)`);
-
-            // If quota exceeded, show immediate feedback and stop the operation
-            setMoveAllProgress("Operation stopped: Storage quota exceeded");
-            setToastMessage(
-              getQuotaExceededMessage("continuing the bulk move operation")
-            );
-            setShowToast(true);
-
-            // Break out of the loop to stop further processing
-            break;
-          } else {
-            errors.push(
-              `${file.filename} (${
-                error instanceof Error ? error.message : "unknown error"
-              })`
-            );
-          }
-
-          console.error(
-            `Error moving ${file.filename} to local storage:`,
-            error
-          );
-        }
-
-        // Small delay to prevent overwhelming the system
-        await new Promise((resolve) => setTimeout(resolve, 200));
-      }
-
-      // Show completion message
-      let message = `Move complete: ${successCount} files moved successfully`;
-      if (errorCount > 0) {
-        message += `, ${errorCount} failed`;
-        if (errors.length <= 3) {
-          message += `\nFailed files: ${errors.join(", ")}`;
-        } else {
-          message += `\nFirst 3 failed files: ${errors
-            .slice(0, 3)
-            .join(", ")}... and ${errors.length - 3} more`;
-        }
-      }
-
-      setToastMessage(message);
-      setShowToast(true);
-
-      // Refresh the file list to show the new local files
-      await renderFileList();
-    } catch (error) {
-      console.error("Error in move all to local:", error);
-      setToastMessage("Failed to move files to local storage");
-      setShowToast(true);
-    } finally {
-      setIsMovingAllToLocal(false);
-      setMoveAllProgress("");
-      setMoveAllCount({ current: 0, total: 0 });
-    }
-  };
-
   // Validation function (adapted from Menu.tsx)
   const _validateName = async (filename: string, excludeKey?: string) => {
     filename = filename.trim();
-    if (filename === "default" || filename === "Untitled") {
+    if (filename === "Untitled") {
       setToastMessage(
-        "Cannot update default or Untitled file! Use Save As Button to save."
+        "Cannot update Untitled file! Use Save As Button to save."
       );
       return false;
     } else if (filename === "" || !filename) {
@@ -1138,14 +673,15 @@ const Files: React.FC<{
         // Get the existing file data
         const fileData = await props.store._getFile(currentRenameKey);
 
-        // Create a new file with the new name
+        // Create a new file with the new name, preserving all original metadata including templateId
         const renamedFile = new LocalFile(
           fileData.created, // Keep the original creation date
           new Date().toISOString(), // Use ISO string for modified date
           fileData.content,
           newFileName,
           fileData.billType,
-          fileData.isPasswordProtected,
+          fileData.templateId || fileData.billType, // Preserve templateId, fallback to billType for backward compatibility
+          fileData.isEncrypted || false,
           fileData.password
         );
 
@@ -1171,8 +707,6 @@ const Files: React.FC<{
         setRenameFileName("");
         setShowRenameAlert(false);
       } catch (error) {
-        console.error("Error renaming file:", error);
-
         // Check if the error is due to storage quota exceeded
         if (isQuotaExceededError(error)) {
           setToastMessage(getQuotaExceededMessage("renaming files"));
@@ -1199,46 +733,64 @@ const Files: React.FC<{
     if (fileSource === "local") {
       const localFiles = await props.store._getAllFiles();
 
-      const filesArray = Object.keys(localFiles)
-        .filter((key) => key !== "default") // Exclude the default file from the list
-        .map((key) => {
-          const fileData = localFiles[key];
+      const filesArray = Object.keys(localFiles).map((key) => {
+        const fileData = localFiles[key];
 
-          // Ensure dates are properly converted - handle both ISO strings and Date.toString() formats
-          let createdDate = fileData.created;
-          let modifiedDate = fileData.modified;
+        // Ensure dates are properly converted - handle both ISO strings and Date.toString() formats
+        let createdDate = fileData.created;
+        let modifiedDate = fileData.modified;
 
-          // If the date looks like a Date.toString() format, try to parse it
-          // Date.toString() typically looks like "Mon Jul 06 2025 10:30:00 GMT+0000 (UTC)"
-          if (typeof createdDate === "string" && createdDate.includes("GMT")) {
-            createdDate = new Date(createdDate).toISOString();
-          }
-          if (
-            typeof modifiedDate === "string" &&
-            modifiedDate.includes("GMT")
-          ) {
-            modifiedDate = new Date(modifiedDate).toISOString();
-          }
+        // If the date looks like a Date.toString() format, try to parse it
+        // Date.toString() typically looks like "Mon Jul 06 2025 10:30:00 GMT+0000 (UTC)"
+        if (typeof createdDate === "string" && createdDate.includes("GMT")) {
+          createdDate = new Date(createdDate).toISOString();
+        }
+        if (typeof modifiedDate === "string" && modifiedDate.includes("GMT")) {
+          modifiedDate = new Date(modifiedDate).toISOString();
+        }
 
-          return {
-            key,
-            name: key,
-            date: modifiedDate, // For backward compatibility
-            dateCreated: createdDate,
-            dateModified: modifiedDate,
-            type: "local",
-          };
+        return {
+          key,
+          name: key,
+          date: modifiedDate, // For backward compatibility
+          dateCreated: createdDate,
+          dateModified: modifiedDate,
+          type: "local",
+          templateMetadata: fileData.templateId
+            ? {
+                templateId: fileData.templateId,
+                template: getTemplateInfo(fileData.templateId),
+              }
+            : null,
+        };
+      });
+
+      // Filter by category if a specific category is selected
+      let filteredFiles = filesArray;
+      if (selectedCategoryFilter !== "all") {
+        filteredFiles = filesArray.filter((file) => {
+          if (!file.templateMetadata?.templateId) return false;
+          const templateCategory = categorizeTemplate(
+            file.templateMetadata.templateId
+          );
+          return templateCategory === selectedCategoryFilter.toLowerCase();
         });
-      const filteredFiles = filterFilesBySearch(filesArray, searchQuery);
+      }
+
+      // Apply search filter
+      filteredFiles = filterFilesBySearch(filteredFiles, searchQuery);
+
       if (filteredFiles.length === 0) {
+        const emptyMessage = searchQuery.trim()
+          ? `No files found matching "${searchQuery}"`
+          : selectedCategoryFilter !== "all"
+          ? `No files found for ${selectedCategoryFilter} category`
+          : "No local files found";
+
         content = (
           <IonList style={{ border: "none" }} lines="none">
             <IonItem style={{ "--border-width": "0px" }}>
-              <IonLabel>
-                {searchQuery.trim()
-                  ? `No files found matching "${searchQuery}"`
-                  : "No local files found"}
-              </IonLabel>
+              <IonLabel>{emptyMessage}</IonLabel>
             </IonItem>
           </IonList>
         );
@@ -1265,7 +817,28 @@ const Files: React.FC<{
                       className="file-icon document-icon"
                     />
                     <IonLabel className="mobile-file-label">
-                      <h3>{file.name}</h3>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          marginBottom: "2px",
+                        }}
+                      >
+                        <h3 style={{ margin: "0" }}>{file.name}</h3>
+                        {file.templateMetadata && (
+                          <IonChip
+                            color="primary"
+                            outline
+                            className="template-chip"
+                          >
+                            <IonIcon icon={layers} />
+                            <IonLabel>
+                              {file.templateMetadata.template}
+                            </IonLabel>
+                          </IonChip>
+                        )}
+                      </div>
                       <p>
                         Local file • {getLocalFileDateInfo(file).label}:{" "}
                         {_formatDate(getLocalFileDateInfo(file).value)}
@@ -1332,7 +905,6 @@ const Files: React.FC<{
                   </IonItem>
                   {(files as any[]).map((file) => (
                     <IonItemGroup key={`local-${file.key}`}>
-                      {" "}
                       <IonItem
                         className="mobile-file-item"
                         onClick={() => editFile(file.key)}
@@ -1347,7 +919,28 @@ const Files: React.FC<{
                           className="file-icon document-icon"
                         />
                         <IonLabel className="mobile-file-label">
-                          <h3>{file.name}</h3>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              marginBottom: "2px",
+                            }}
+                          >
+                            <h3 style={{ margin: "0" }}>{file.name}</h3>
+                            {file.templateMetadata && (
+                              <IonChip
+                                color="primary"
+                                outline
+                                className="template-chip"
+                              >
+                                <IonIcon icon={layers} />
+                                <IonLabel>
+                                  {file.templateMetadata.template}
+                                </IonLabel>
+                              </IonChip>
+                            )}
+                          </div>
                           <p>
                             Local file • {getLocalFileDateInfo(file).label}:{" "}
                             {_formatDate(getLocalFileDateInfo(file).value)}
@@ -1395,87 +988,117 @@ const Files: React.FC<{
           );
         }
       }
-    } else if (fileSource === "server") {
-      if (!cloudService.isAuthenticated()) {
+    } else if (fileSource === "blockchain") {
+      if (!address) {
         content = (
-          <IonCard>
-            <IonCardHeader>
-              <IonCardTitle>Server Files</IonCardTitle>
-            </IonCardHeader>
-            <IonCardContent>
-              <p>Please login to access your server files.</p>
-            </IonCardContent>
-          </IonCard>
+          <IonList style={{ border: "none" }} lines="none">
+            <IonItem style={{ "--border-width": "0px" }}>
+              <IonLabel>
+                <div style={{ textAlign: "center", padding: "20px" }}>
+                  <p>Please connect your wallet to view blockchain files</p>
+                </div>
+              </IonLabel>
+            </IonItem>
+          </IonList>
+        );
+      } else if (blockchainFilesLoading) {
+        content = (
+          <IonList style={{ border: "none" }} lines="none">
+            <IonItem style={{ "--border-width": "0px" }}>
+              <IonLabel>
+                <div style={{ textAlign: "center", padding: "20px" }}>
+                  <IonSpinner />
+                  <p>Loading blockchain files...</p>
+                </div>
+              </IonLabel>
+            </IonItem>
+          </IonList>
         );
       } else {
-        if (serverFilesLoading) {
-          content = (
-            <IonList style={{ border: "none" }} lines="none">
-              <IonItem style={{ "--border-width": "0px" }}>
-                <IonSpinner name="circular" slot="start" />
-                <IonLabel>Loading server files...</IonLabel>
-              </IonItem>
-            </IonList>
-          );
-        } else if (serverFiles.length === 0) {
+        const files = blockchainFiles || [];
+        const filteredFiles = filterFilesBySearch(files, searchQuery);
+
+        if (filteredFiles.length === 0) {
+          const emptyMessage = searchQuery.trim()
+            ? `No blockchain files found matching "${searchQuery}"`
+            : !address
+            ? "Please connect your wallet to view blockchain files"
+            : "No files found on blockchain";
+
           content = (
             <IonList style={{ border: "none" }} lines="none">
               <IonItem style={{ "--border-width": "0px" }}>
                 <IonLabel>
-                  {searchQuery.trim()
-                    ? `No files found matching "${searchQuery}"`
-                    : "No server files found"}
+                  <div style={{ textAlign: "center", padding: "20px" }}>
+                    <p>{emptyMessage}</p>
+                    <div style={{ marginTop: "16px" }}>
+                      <IonButton
+                        fill="outline"
+                        size="small"
+                        onClick={() => setShowSubscriptionPlans(true)}
+                      >
+                        📦 Buy More Storage
+                      </IonButton>
+                    </div>
+                  </div>
                 </IonLabel>
               </IonItem>
             </IonList>
           );
         } else {
-          const filteredFiles = filterFilesBySearch(serverFiles, searchQuery);
-          if (filteredFiles.length === 0) {
+          const sortedFiles = sortFiles(filteredFiles, sortBy);
+          
+          if (sortBy === "name") {
+            // For name sorting, show files in a simple list without date grouping
             content = (
-              <IonList style={{ border: "none" }} lines="none">
-                <IonItem style={{ "--border-width": "0px" }}>
-                  <IonLabel>
-                    {searchQuery.trim()
-                      ? `No files found matching "${searchQuery}"`
-                      : "No server files found"}
-                  </IonLabel>
-                </IonItem>
-              </IonList>
-            );
-          } else {
-            const mappedFiles = filteredFiles.map((file) => ({
-              ...file,
-              date: file.created_at,
-              name: file.filename,
-            }));
-            const sortedFiles = sortFiles(mappedFiles, sortBy);
-
-            if (sortBy === "name") {
-              // For name sorting, show files in a simple list without date grouping
-              content = (
+              <div>
+                <div style={{ padding: "16px", textAlign: "center", backgroundColor: "var(--ion-color-light)" }}>
+                  <IonButton
+                    fill="outline"
+                    size="small"
+                    onClick={() => setShowSubscriptionPlans(true)}
+                  >
+                    📦 Buy More Storage
+                  </IonButton>
+                </div>
                 <IonList style={{ border: "none" }} lines="none">
-                  {sortedFiles.map((file) => {
-                    const isDeleting = deletingFile === file.id;
-                    return (
-                      <IonItemGroup key={`server-${file.id}`}>
-                        <IonItem
-                          className="mobile-file-item"
-                          style={{
-                            "--border-width": "0px",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <IonIcon
-                            icon={server}
-                            slot="start"
-                            className="file-icon server-icon"
-                          />
-                          <IonLabel className="mobile-file-label">
-                            <h3>{file.filename}</h3>
-                            <p>Server file • {_formatDate(file.created_at)}</p>
-                            <p>Size: {(file.file_size / 1024).toFixed(2)} KB</p>
-                          </IonLabel>
+                  {sortedFiles.map((file: any, index: number) => (
+                    <IonItemGroup key={`blockchain-${index}`}>
+                      <IonItem
+                        className="mobile-file-item"
+                        onClick={() => editBlockchainFile(file)}
+                        style={{
+                          "--border-width": "0px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <IonIcon
+                          icon={documentText}
+                          slot="start"
+                          className="file-icon document-icon"
+                        />
+                        <IonLabel className="mobile-file-label">
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              marginBottom: "2px",
+                            }}
+                          >
+                            <h3 style={{ margin: "0" }}>{file.file_name}</h3>
+                            <IonBadge color="secondary" style={{ fontSize: "10px" }}>
+                              Blockchain
+                            </IonBadge>
+                          </div>
+                          <p>
+                            Created: {_formatDate(file.created_at)}
+                          </p>
+                        </IonLabel>
+                        {loadingBlockchainFile === file.file_name && (
+                          <IonSpinner slot="end" />
+                        )}
+                        {loadingBlockchainFile !== file.file_name && (
                           <div
                             slot="end"
                             style={{
@@ -1486,45 +1109,53 @@ const Files: React.FC<{
                           >
                             <IonIcon
                               icon={download}
-                              color="success"
+                              color="primary"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleMoveToLocal(file);
+                                downloadBlockchainFile(file);
                               }}
-                              title="Move to Local Storage"
                               style={{
                                 fontSize: "24px",
                                 cursor: "pointer",
                               }}
                             />
                             <IonIcon
-                              icon={trash}
-                              color="danger"
+                              icon={copyOutline}
+                              color="tertiary"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                deleteServerFile(file);
+                                moveBlockchainFileToLocal(file);
                               }}
                               style={{
                                 fontSize: "24px",
                                 cursor: "pointer",
-                                opacity: isDeleting ? 0.5 : 1,
                               }}
                             />
-                            {isDeleting && <IonSpinner name="circular" />}
                           </div>
-                        </IonItem>
-                      </IonItemGroup>
-                    );
-                  })}
+                        )}
+                      </IonItem>
+                    </IonItemGroup>
+                  ))}
                 </IonList>
-              );
-            } else {
-              // For date and recent sorting, group by date
-              const groupedFiles = groupFilesByDate(sortedFiles, sortBy);
-              content = (
+              </div>
+            );
+          } else {
+            // For date sorting, group by date
+            const groupedFiles = groupFilesByDate(sortedFiles, sortBy);
+            content = (
+              <div>
+                <div style={{ padding: "16px", textAlign: "center", backgroundColor: "var(--ion-color-light)" }}>
+                  <IonButton
+                    fill="outline"
+                    size="small"
+                    onClick={() => setShowSubscriptionPlans(true)}
+                  >
+                    📦 Buy More Storage
+                  </IonButton>
+                </div>
                 <IonList style={{ border: "none" }} lines="none">
                   {Object.entries(groupedFiles).map(([dateHeader, files]) => (
-                    <div key={`server-group-${dateHeader}`}>
+                    <div key={`blockchain-group-${dateHeader}`}>
                       <IonItem
                         color="light"
                         className="date-header-item"
@@ -1539,31 +1170,43 @@ const Files: React.FC<{
                           </h2>
                         </IonLabel>
                       </IonItem>
-                      {(files as any[]).map((file) => {
-                        const isDeleting = deletingFile === file.id;
-                        return (
-                          <IonItemGroup key={`server-${file.id}`}>
-                            <IonItem
-                              className="mobile-file-item"
-                              style={{
-                                "--border-width": "0px",
-                                cursor: "pointer",
-                              }}
-                            >
-                              <IonIcon
-                                icon={server}
-                                slot="start"
-                                className="file-icon server-icon"
-                              />
-                              <IonLabel className="mobile-file-label">
-                                <h3>{file.filename}</h3>
-                                <p>
-                                  Server file • {_formatDate(file.created_at)}
-                                </p>
-                                <p>
-                                  Size: {(file.file_size / 1024).toFixed(2)} KB
-                                </p>
-                              </IonLabel>
+                      {(files as any[]).map((file: any, index: number) => (
+                        <IonItemGroup key={`blockchain-${index}`}>
+                          <IonItem
+                            className="mobile-file-item"
+                            onClick={() => editBlockchainFile(file)}
+                            style={{
+                              "--border-width": "0px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            <IonIcon
+                              icon={documentText}
+                              slot="start"
+                              className="file-icon document-icon"
+                            />
+                            <IonLabel className="mobile-file-label">
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                  marginBottom: "2px",
+                                }}
+                              >
+                                <h3 style={{ margin: "0" }}>{file.file_name}</h3>
+                                <IonBadge color="secondary" style={{ fontSize: "10px" }}>
+                                  Blockchain
+                                </IonBadge>
+                              </div>
+                              <p>
+                                Created: {_formatDate(file.created_at)}
+                              </p>
+                            </IonLabel>
+                            {loadingBlockchainFile === file.file_name && (
+                              <IonSpinner slot="end" />
+                            )}
+                            {loadingBlockchainFile !== file.file_name && (
                               <div
                                 slot="end"
                                 style={{
@@ -1574,226 +1217,37 @@ const Files: React.FC<{
                               >
                                 <IonIcon
                                   icon={download}
-                                  color="success"
+                                  color="primary"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleMoveToLocal(file);
+                                    downloadBlockchainFile(file);
                                   }}
-                                  title="Move to Local Storage"
                                   style={{
                                     fontSize: "24px",
                                     cursor: "pointer",
                                   }}
                                 />
                                 <IonIcon
-                                  icon={trash}
-                                  color="danger"
+                                  icon={copyOutline}
+                                  color="tertiary"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    deleteServerFile(file);
+                                    moveBlockchainFileToLocal(file);
                                   }}
                                   style={{
                                     fontSize: "24px",
                                     cursor: "pointer",
-                                    opacity: isDeleting ? 0.5 : 1,
                                   }}
                                 />
-                                {isDeleting && <IonSpinner name="circular" />}
                               </div>
-                            </IonItem>
-                          </IonItemGroup>
-                        );
-                      })}
+                            )}
+                          </IonItem>
+                        </IonItemGroup>
+                      ))}
                     </div>
                   ))}
                 </IonList>
-              );
-            }
-          }
-        }
-      }
-    } else if (fileSource === "blockchain") {
-      if (!address) {
-        content = (
-          <IonCard>
-            <IonCardHeader>
-              <IonCardTitle>Blockchain Files</IonCardTitle>
-            </IonCardHeader>
-            <IonCardContent>
-              <p>Please connect your wallet to access blockchain files.</p>
-            </IonCardContent>
-          </IonCard>
-        );
-      } else {
-        if (blockchainFilesLoading) {
-          content = (
-            <IonList style={{ border: "none" }} lines="none">
-              <IonItem style={{ "--border-width": "0px" }}>
-                <IonSpinner name="circular" slot="start" />
-                <IonLabel>Loading blockchain files...</IonLabel>
-              </IonItem>
-            </IonList>
-          );
-        } else if (!blockchainFiles || blockchainFiles.length === 0) {
-          content = (
-            <IonList style={{ border: "none" }} lines="none">
-              <IonItem style={{ "--border-width": "0px" }}>
-                <IonLabel>
-                  {searchQuery.trim()
-                    ? `No files found matching "${searchQuery}"`
-                    : "No blockchain files found"}
-                </IonLabel>
-              </IonItem>
-            </IonList>
-          );
-        } else {
-          const filteredFiles = blockchainFiles.filter((file) => {
-            if (!searchQuery.trim()) return true;
-            const searchTerm = searchQuery.toLowerCase().trim();
-            return file.file_name.toLowerCase().includes(searchTerm);
-          });
-
-          if (filteredFiles.length === 0) {
-            content = (
-              <IonList style={{ border: "none" }} lines="none">
-                <IonItem style={{ "--border-width": "0px" }}>
-                  <IonLabel>
-                    {searchQuery.trim()
-                      ? `No files found matching "${searchQuery}"`
-                      : "No blockchain files found"}
-                  </IonLabel>
-                </IonItem>
-              </IonList>
-            );
-          } else {
-            // Group files by date
-            const groupedFiles: { [key: string]: FileRecord[] } = {};
-            filteredFiles.forEach((file) => {
-              const date = new Date(Number(file.timestamp) * 1000);
-              const dateKey = date.toDateString();
-              if (!groupedFiles[dateKey]) {
-                groupedFiles[dateKey] = [];
-              }
-              groupedFiles[dateKey].push(file);
-            });
-
-            content = (
-              <IonList style={{ border: "none" }} lines="none">
-                {Object.keys(groupedFiles)
-                  .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
-                  .map((dateKey) => (
-                    <div key={dateKey}>
-                      <IonItemGroup>
-                        <IonItem lines="none" className="date-header">
-                          <IonLabel>
-                            <strong>{dateKey}</strong>
-                          </IonLabel>
-                        </IonItem>
-                        {groupedFiles[dateKey].map((file, index) => {
-                          const date = new Date(Number(file.timestamp) * 1000);
-                          return (
-                            <IonItemSliding key={`${file.file_name}-${index}`}>
-                              <IonItem
-                                className="mobile-file-item"
-                                onClick={() => editBlockchainFile(file)}
-                                style={{
-                                  "--border-width": "0px",
-                                  cursor: "pointer",
-                                }}
-                                disabled={
-                                  loadingBlockchainFile === file.file_name
-                                }
-                              >
-                                {loadingBlockchainFile === file.file_name ? (
-                                  <IonSpinner
-                                    name="circular"
-                                    slot="start"
-                                    className="file-icon"
-                                  />
-                                ) : (
-                                  <IonIcon
-                                    icon={documentText}
-                                    slot="start"
-                                    className="file-icon document-icon"
-                                  />
-                                )}
-                                <IonLabel className="mobile-file-label">
-                                  <h3>{file.file_name}</h3>
-                                  <p>
-                                    Blockchain file • {date.toLocaleString()}
-                                  </p>
-                                  <p>IPFS: {file.ipfs_cid.slice(0, 20)}...</p>
-                                  {loadingBlockchainFile === file.file_name && (
-                                    <p
-                                      style={{
-                                        color: "var(--ion-color-primary)",
-                                      }}
-                                    >
-                                      Loading from IPFS...
-                                    </p>
-                                  )}
-                                </IonLabel>
-                                <div
-                                  slot="end"
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "6px",
-                                  }}
-                                >
-                                  <IonIcon
-                                    icon={download}
-                                    color="primary"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      downloadBlockchainFile(file);
-                                    }}
-                                    title="Download File"
-                                    style={{
-                                      fontSize: "24px",
-                                      cursor: "pointer",
-                                    }}
-                                  />
-                                  <IonIcon
-                                    icon={folderOpen}
-                                    color="success"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      moveBlockchainFileToLocal(file);
-                                    }}
-                                    title="Move to Local Storage"
-                                    style={{
-                                      fontSize: "24px",
-                                      cursor: "pointer",
-                                    }}
-                                  />
-                                </div>
-                              </IonItem>
-                              <IonItemOptions side="end">
-                                <IonItemOption
-                                  color="primary"
-                                  onClick={() => downloadBlockchainFile(file)}
-                                >
-                                  <IonIcon icon={download} />
-                                  Download
-                                </IonItemOption>
-                                <IonItemOption
-                                  color="success"
-                                  onClick={() =>
-                                    moveBlockchainFileToLocal(file)
-                                  }
-                                >
-                                  <IonIcon icon={folderOpen} />
-                                  Move to Local
-                                </IonItemOption>
-                              </IonItemOptions>
-                            </IonItemSliding>
-                          );
-                        })}
-                      </IonItemGroup>
-                    </div>
-                  ))}
-              </IonList>
+              </div>
             );
           }
         }
@@ -1810,33 +1264,38 @@ const Files: React.FC<{
     fileSource,
     searchQuery,
     sortBy,
-    serverFiles,
     serverFilesLoading,
+    selectedCategoryFilter,
     blockchainFiles,
     blockchainFilesLoading,
     address,
   ]);
 
+  // Check screen size
   useEffect(() => {
-    if (fileSource === "server" && cloudService.isAuthenticated()) {
-      loadServerFiles();
-    }
-  }, [fileSource]);
+    const checkScreenSize = () => {
+      setIsSmallScreen(window.innerWidth < 692);
+    };
+
+    checkScreenSize();
+    window.addEventListener("resize", checkScreenSize);
+    return () => window.removeEventListener("resize", checkScreenSize);
+  }, []);
 
   // Reset sort option when switching file sources to ensure compatibility
   useEffect(() => {
-    if (fileSource === "server" || fileSource === "blockchain") {
-      // For server and blockchain files, only "date" and "name" are available
+    if (fileSource === "blockchain") {
+      // For blockchain files, only "date" and "name" are available
       if (sortBy === "dateCreated" || sortBy === "dateModified") {
         setSortBy("date");
       }
     } else {
-      // For local files, if coming from server/blockchain and using "date", switch to "dateModified"
+      // For local files, if coming from blockchain and using "date", switch to "dateModified"
       if (sortBy === "date") {
         setSortBy("dateModified");
       }
     }
-  }, [fileSource]);
+  }, [fileSource, sortBy]);
 
   return (
     <div>
@@ -1851,15 +1310,7 @@ const Files: React.FC<{
                 }`}
                 onClick={() => setFileSource("local")}
               >
-                🏠 Local Files
-              </button>
-              <button
-                className={`custom-tab-button ${
-                  fileSource === "server" ? "active" : ""
-                }`}
-                onClick={() => setFileSource("server")}
-              >
-                ☁️ Server Files
+                🏠 Your Files
               </button>
               <button
                 className={`custom-tab-button ${
@@ -1867,7 +1318,7 @@ const Files: React.FC<{
                 }`}
                 onClick={() => setFileSource("blockchain")}
               >
-                🔗 Blockchain Files
+                ⛓️ Blockchain
               </button>
             </div>
           </div>
@@ -1879,6 +1330,7 @@ const Files: React.FC<{
                 alignItems: "center",
                 maxWidth: "800px",
                 margin: "0 auto",
+                flexWrap: "wrap",
               }}
             >
               <IonSearchbar
@@ -1890,188 +1342,167 @@ const Files: React.FC<{
                 debounce={300}
                 style={{ flex: "2", minWidth: "200px" }}
               />
+
+              {/* Category Filter */}
               <div
                 style={{
                   display: "flex",
                   alignItems: "center",
                   flex: "1",
-                  minWidth: "140px",
-                  maxWidth: "180px",
+                  minWidth: isSmallScreen ? "32px" : "140px",
+                  maxWidth: isSmallScreen ? "32px" : "180px",
+                }}
+              >
+                <IonIcon
+                  icon={layers}
+                  style={{
+                    marginRight: isSmallScreen ? "0" : "4px",
+                    fontSize: "16px",
+                  }}
+                />
+                {!isSmallScreen && (
+                  <IonSelect
+                    value={selectedCategoryFilter}
+                    placeholder="All Categories"
+                    onIonChange={(e) =>
+                      setSelectedCategoryFilter(e.detail.value)
+                    }
+                    style={{
+                      flex: "1",
+                      "--placeholder-color": "var(--ion-color-medium)",
+                      "--color": "var(--ion-color-dark)",
+                    }}
+                    interface="popover"
+                  >
+                    <IonSelectOption value="all">
+                      All Categories
+                    </IonSelectOption>
+                    {getAvailableCategories().map((category) => (
+                      <IonSelectOption key={category} value={category}>
+                        {category}
+                      </IonSelectOption>
+                    ))}
+                  </IonSelect>
+                )}
+                {isSmallScreen && (
+                  <IonSelect
+                    value={selectedCategoryFilter}
+                    placeholder=""
+                    onIonChange={(e) =>
+                      setSelectedCategoryFilter(e.detail.value)
+                    }
+                    style={{
+                      flex: "1",
+                      "--placeholder-color": "var(--ion-color-medium)",
+                      "--color": "var(--ion-color-dark)",
+                      width: "5px",
+                      minWidth: "5px",
+                    }}
+                    interface="popover"
+                  >
+                    <IonSelectOption value="all">
+                      All Categories
+                    </IonSelectOption>
+                    {getAvailableCategories().map((category) => (
+                      <IonSelectOption key={category} value={category}>
+                        {category}
+                      </IonSelectOption>
+                    ))}
+                  </IonSelect>
+                )}
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  flex: "1",
+                  minWidth: isSmallScreen ? "32px" : "140px",
+                  maxWidth: isSmallScreen ? "32px" : "180px",
                 }}
               >
                 <IonIcon
                   icon={swapVertical}
-                  style={{ marginRight: "4px", fontSize: "16px" }}
-                />
-                <IonSelect
-                  value={sortBy}
-                  placeholder="Sort by"
-                  onIonChange={(e) => setSortBy(e.detail.value)}
                   style={{
-                    flex: "1",
-                    "--placeholder-color": "var(--ion-color-medium)",
-                    "--color": "var(--ion-color-dark)",
+                    marginRight: isSmallScreen ? "0" : "4px",
+                    fontSize: "16px",
                   }}
-                  interface="popover"
-                >
-                  {fileSource === "local" ? (
-                    <>
-                      <IonSelectOption value="dateModified">
-                        By Date Modified
-                      </IonSelectOption>
-                      <IonSelectOption value="dateCreated">
-                        By Date Created
-                      </IonSelectOption>
-                      <IonSelectOption value="name">By Name</IonSelectOption>
-                    </>
-                  ) : (
-                    <>
-                      <IonSelectOption value="date">By Date</IonSelectOption>
-                      <IonSelectOption value="name">By Name</IonSelectOption>
-                    </>
-                  )}
-                </IonSelect>
+                />
+                {!isSmallScreen && (
+                  <IonSelect
+                    value={sortBy}
+                    placeholder="Sort by"
+                    onIonChange={(e) => setSortBy(e.detail.value)}
+                    style={{
+                      flex: "1",
+                      "--placeholder-color": "var(--ion-color-medium)",
+                      "--color": "var(--ion-color-dark)",
+                    }}
+                    interface="popover"
+                  >
+                    {fileSource === "local" ? (
+                      <>
+                        <IonSelectOption value="dateModified">
+                          By Date Modified
+                        </IonSelectOption>
+                        <IonSelectOption value="dateCreated">
+                          By Date Created
+                        </IonSelectOption>
+                        <IonSelectOption value="name">By Name</IonSelectOption>
+                      </>
+                    ) : fileSource === "blockchain" ? (
+                      <>
+                        <IonSelectOption value="date">By Date</IonSelectOption>
+                        <IonSelectOption value="name">By Name</IonSelectOption>
+                      </>
+                    ) : (
+                      <>
+                        <IonSelectOption value="date">By Date</IonSelectOption>
+                        <IonSelectOption value="name">By Name</IonSelectOption>
+                      </>
+                    )}
+                  </IonSelect>
+                )}
+                {isSmallScreen && (
+                  <IonSelect
+                    value={sortBy}
+                    placeholder=""
+                    onIonChange={(e) => setSortBy(e.detail.value)}
+                    style={{
+                      flex: "1",
+                      "--placeholder-color": "var(--ion-color-medium)",
+                      "--color": "var(--ion-color-dark)",
+                      width: "5px",
+                      minWidth: "5px",
+                    }}
+                    interface="popover"
+                  >
+                    {fileSource === "local" ? (
+                      <>
+                        <IonSelectOption value="dateModified">
+                          By Date Modified
+                        </IonSelectOption>
+                        <IonSelectOption value="dateCreated">
+                          By Date Created
+                        </IonSelectOption>
+                        <IonSelectOption value="name">By Name</IonSelectOption>
+                      </>
+                    ) : fileSource === "blockchain" ? (
+                      <>
+                        <IonSelectOption value="date">By Date</IonSelectOption>
+                        <IonSelectOption value="name">By Name</IonSelectOption>
+                      </>
+                    ) : (
+                      <>
+                        <IonSelectOption value="date">By Date</IonSelectOption>
+                        <IonSelectOption value="name">By Name</IonSelectOption>
+                      </>
+                    )}
+                  </IonSelect>
+                )}
               </div>
             </div>
           </div>
-          {fileSource === "local" && cloudService.isAuthenticated() && (
-            <div
-              style={{
-                padding: "0 16px 8px 16px",
-                display: "flex",
-                gap: "8px",
-                alignItems: "center",
-                maxWidth: "800px",
-                margin: "0 auto",
-              }}
-            >
-              <IonButton
-                size="small"
-                fill="solid"
-                color="primary"
-                onClick={handleSaveAllToServer}
-                disabled={isSavingAllToServer}
-              >
-                <IonIcon icon={cloudUpload} slot="start" />
-                {isSavingAllToServer ? "Saving..." : "Save All to Server"}
-              </IonButton>
-              {isSavingAllToServer && (
-                <div
-                  style={{ fontSize: "12px", color: "var(--ion-color-medium)" }}
-                >
-                  {saveAllProgress}
-                  {saveAllCount.total > 0 && (
-                    <span>
-                      {" "}
-                      ({saveAllCount.current}/{saveAllCount.total})
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-          {fileSource === "local" && !cloudService.isAuthenticated() && (
-            <div
-              style={{
-                padding: "0 16px 8px 16px",
-                display: "flex",
-                gap: "8px",
-                alignItems: "center",
-                maxWidth: "800px",
-                margin: "0 auto",
-              }}
-            >
-              <IonButton size="small" fill="outline" color="medium" disabled>
-                <IonIcon icon={cloudUpload} slot="start" />
-                Save All to Server (Login Required)
-              </IonButton>
-            </div>
-          )}
-          {fileSource === "server" && cloudService.isAuthenticated() && (
-            <div
-              style={{
-                padding: "0 16px 8px 16px",
-                display: "flex",
-                gap: "8px",
-                alignItems: "center",
-                flexWrap: "wrap",
-                maxWidth: "800px",
-                margin: "0 auto",
-              }}
-            >
-              <IonButton
-                size="small"
-                fill="solid"
-                color="secondary"
-                onClick={handleMoveAllToLocal}
-                disabled={isMovingAllToLocal}
-              >
-                <IonIcon icon={download} slot="start" />
-                {isMovingAllToLocal ? "Moving..." : "Move All to Local"}
-              </IonButton>
-              {isMovingAllToLocal && (
-                <div
-                  style={{
-                    fontSize: "12px",
-                    color: "var(--ion-color-medium)",
-                    width: "100%",
-                    marginTop: "4px",
-                  }}
-                >
-                  {moveAllProgress}
-                  {moveAllCount.total > 0 && (
-                    <span>
-                      {" "}
-                      ({moveAllCount.current}/{moveAllCount.total})
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-          {fileSource === "blockchain" && (
-            <div
-              style={{
-                padding: "0 16px 8px 16px",
-                display: "flex",
-                gap: "8px",
-                alignItems: "center",
-                flexWrap: "wrap",
-                maxWidth: "800px",
-                margin: "0 auto",
-              }}
-            >
-              {address ? (
-                <>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      flex: 1,
-                    }}
-                  >
-                    <IonLabel>
-                      File Storage:{" "}
-                      {fileLimits
-                        ? `${fileLimits[0]} / ${fileLimits[1]}`
-                        : "Loading..."}
-                    </IonLabel>
-                  </div>
-                  <IonButton
-                    size="small"
-                    fill="solid"
-                    color="primary"
-                    onClick={() => setShowSubscriptionPlans(true)}
-                  >
-                    Buy More Storage
-                  </IonButton>
-                </>
-              ) : (
-                <IonLabel>Connect wallet to view blockchain files</IonLabel>
-              )}
-            </div>
-          )}
         </div>
         <div
           className="files-scrollable-container"
@@ -2098,7 +1529,6 @@ const Files: React.FC<{
             handler: async () => {
               if (currentKey) {
                 await props.store._deleteFile(currentKey);
-                loadDefault();
                 setCurrentKey(null);
                 await renderFileList();
               }
@@ -2106,70 +1536,51 @@ const Files: React.FC<{
           },
         ]}
       />
-      <IonAlert
-        animated
-        isOpen={showServerDeleteAlert}
-        onDidDismiss={() => setShowServerDeleteAlert(false)}
-        header="Delete server file"
-        message={
-          currentServerFile
-            ? `Do you want to delete the "${currentServerFile.filename}" file from the server?`
-            : "Do you want to delete this file from the server?"
-        }
-        buttons={[
-          { text: "No", role: "cancel" },
-          {
-            text: "Yes",
-            handler: async () => {
-              if (currentServerFile) {
-                await handleFileDelete(currentServerFile.id);
-                setCurrentServerFile(null);
-              }
+
+      {/* Rename File Alert Wrapper */}
+      {showRenameAlert && currentRenameKey && (
+        <IonAlert
+          animated
+          isOpen={true}
+          onDidDismiss={() => {
+            setShowRenameAlert(false);
+            setCurrentRenameKey(null);
+            setRenameFileName("");
+          }}
+          header="Rename File"
+          message={`Enter a new name for "${currentRenameKey}"`}
+          inputs={[
+            {
+              name: "filename",
+              type: "text",
+              value: renameFileName,
+              placeholder: "Enter new filename",
             },
-          },
-        ]}
-      />
-      <IonAlert
-        animated
-        isOpen={showRenameAlert}
-        onDidDismiss={() => {
-          setShowRenameAlert(false);
-          setCurrentRenameKey(null);
-          setRenameFileName("");
-        }}
-        header="Rename File"
-        message={`Enter a new name for "${currentRenameKey}"`}
-        inputs={[
-          {
-            name: "filename",
-            type: "text",
-            value: renameFileName,
-            placeholder: "Enter new filename",
-          },
-        ]}
-        buttons={[
-          {
-            text: "Cancel",
-            role: "cancel",
-            handler: () => {
-              setCurrentRenameKey(null);
-              setRenameFileName("");
+          ]}
+          buttons={[
+            {
+              text: "Cancel",
+              role: "cancel",
+              handler: () => {
+                setCurrentRenameKey(null);
+                setRenameFileName("");
+              },
             },
-          },
-          {
-            text: "Rename",
-            handler: (data) => {
-              const newFileName = data.filename?.trim();
-              if (newFileName) {
-                handleRename(newFileName);
-              } else {
-                setToastMessage("Filename cannot be empty");
-                setShowToast(true);
-              }
+            {
+              text: "Rename",
+              handler: (data) => {
+                const newFileName = data.filename?.trim();
+                if (newFileName) {
+                  handleRename(newFileName);
+                } else {
+                  setToastMessage("Filename cannot be empty");
+                  setShowToast(true);
+                }
+              },
             },
-          },
-        ]}
-      />
+          ]}
+        />
+      )}
       <IonToast
         isOpen={showToast}
         onDidDismiss={() => setShowToast(false)}

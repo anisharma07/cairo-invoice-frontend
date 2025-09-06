@@ -23,7 +23,7 @@ export function StarknetProviders({ children }: { children: ReactNode }) {
 
   const rpcUrl =
     import.meta.env.VITE_STARKNET_RPC_URL ||
-    "https://starknet-sepolia.public.blastapi.io";
+    "https://starknet-sepolia.infura.io/v3/1fb9f9af8b8f457a918ca9697c57f1ad";
 
   return (
     <StarknetConfig
@@ -32,7 +32,7 @@ export function StarknetProviders({ children }: { children: ReactNode }) {
         rpc: (chain) => ({
           nodeUrl:
             chain.id === mainnet.id
-              ? "https://starknet-mainnet.public.blastapi.io"
+              ? "https://starknet-sepolia.infura.io/v3/1fb9f9af8b8f457a918ca9697c57f1ad"
               : rpcUrl,
         }),
       })}

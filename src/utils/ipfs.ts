@@ -12,6 +12,28 @@ export interface IPFSUploadResponse {
   Timestamp: string;
 }
 
+export interface BlockchainFileMetadata {
+  // Core file metadata
+  created: string;
+  modified: string;
+  name: string;
+  billType: number;
+  templateId: number;
+  isEncrypted?: boolean;
+  
+  // Spreadsheet content (msc - main spreadsheet content)
+  content: any;
+  
+  // Blockchain-specific metadata
+  blockchain: {
+    uploadedAt: string;
+    uploadedBy: string;
+    version: string;
+    fileSize: number;
+    contentType: string;
+  };
+}
+
 /**
  * Upload file to IPFS via Pinata
  */
@@ -74,10 +96,12 @@ export async function uploadJSONToIPFS(
   }
 
   const metadata = {
-    name: filename || `medical-data-${Date.now()}`,
+    name: filename || `govt-invoice-${Date.now()}`,
     keyvalues: {
-      type: "medical-data",
+      type: "government-invoice",
       timestamp: new Date().toISOString(),
+      category: "invoice-with-metadata",
+      hasMetadata: "true",
     },
   };
 

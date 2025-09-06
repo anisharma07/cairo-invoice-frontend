@@ -18,20 +18,24 @@ export interface SheetData {
 }
 
 // Helper function to add header and footer to each page
-const addHeaderAndFooter = (pdf: jsPDF, pageNumber: number, totalPages: number) => {
+const addHeaderAndFooter = (
+  pdf: jsPDF,
+  pageNumber: number,
+  totalPages: number
+) => {
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
-  
+
   // Get current date and time
   const now = new Date();
-  const dateTimeString = now.toLocaleString('en-US', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: true
+  const dateTimeString = now.toLocaleString("en-US", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
   });
 
   // Set font for header/footer
@@ -86,7 +90,7 @@ export const exportAllSheetsAsPDF = async (
 
     // Remove the first empty page
     pdf.deletePage(1);
-    
+
     // Track total pages for numbering
     let currentPageNumber = 0;
     const pagesInfo: Array<{ sheetIndex: number; pageInSheet: number }> = [];
@@ -179,7 +183,7 @@ export const exportAllSheetsAsPDF = async (
             "FAST"
           );
 
-          heightLeft -= (pageHeight - 10); // Account for header/footer space
+          heightLeft -= pageHeight - 10; // Account for header/footer space
 
           // Add continuation pages for this sheet if needed
           while (heightLeft >= 0) {
@@ -188,7 +192,7 @@ export const exportAllSheetsAsPDF = async (
             currentPageNumber++;
             pageInSheet++;
             pagesInfo.push({ sheetIndex: i, pageInSheet: pageInSheet });
-            
+
             pdf.addImage(
               canvas.toDataURL("image/png", 0.95),
               "PNG",
@@ -199,10 +203,9 @@ export const exportAllSheetsAsPDF = async (
               undefined,
               "FAST"
             );
-            heightLeft -= (pageHeight - 10); // Account for header/footer space
+            heightLeft -= pageHeight - 10; // Account for header/footer space
           }
         }
-
       } finally {
         // Always remove the temporary container
         document.body.removeChild(tempContainer);
@@ -212,7 +215,7 @@ export const exportAllSheetsAsPDF = async (
     // Add headers and footers to all pages
     onProgress?.("Adding headers and footers...");
     const totalPages = currentPageNumber;
-    
+
     for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
       pdf.setPage(pageNum);
       addHeaderAndFooter(pdf, pageNum, totalPages);
@@ -228,7 +231,6 @@ export const exportAllSheetsAsPDF = async (
       onProgress?.("PDF saved successfully!");
     }
   } catch (error) {
-    console.error("Error generating combined PDF:", error);
     throw new Error("Failed to generate combined PDF. Please try again.");
   }
 };

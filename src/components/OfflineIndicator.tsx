@@ -1,45 +1,64 @@
-import React from 'react';
+import React, { useState } from "react";
 import {
   IonBadge,
   IonIcon,
   IonItem,
   IonLabel,
-  IonNote
-} from '@ionic/react';
-import { cloudOfflineOutline, cloudDoneOutline, wifiOutline } from 'ionicons/icons';
-import { usePWA } from '../hooks/usePWA';
+  IonNote,
+  IonButton,
+} from "@ionic/react";
+import {
+  cloudOfflineOutline,
+  cloudDoneOutline,
+  wifiOutline,
+  closeOutline,
+} from "ionicons/icons";
+import { usePWA } from "../hooks/usePWA";
 
 const OfflineIndicator: React.FC = () => {
   const { isOnline } = usePWA();
+  const [isDismissed, setIsDismissed] = useState(false);
+
+  // Reset dismissal when coming back online
+  React.useEffect(() => {
+    if (isOnline) {
+      setIsDismissed(false);
+    }
+  }, [isOnline]);
+
+  // Don't show if dismissed or if online
+  if (isDismissed || isOnline) {
+    return null;
+  }
 
   return (
-    <IonItem lines="none" style={{ 
-      position: 'sticky', 
-      top: 0, 
-      zIndex: 999,
-      backgroundColor: isOnline ? '#d4edda' : '#f8d7da',
-      borderBottom: `2px solid ${isOnline ? '#c3e6cb' : '#f5c6cb'}`
-    }}>
-      <IonIcon 
-        icon={isOnline ? cloudDoneOutline : cloudOfflineOutline} 
-        slot="start"
-        color={isOnline ? 'success' : 'danger'}
-      />
+    <IonItem
+      lines="none"
+      style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 999,
+        backgroundColor: "#f8d7da",
+        borderBottom: "2px solid #f5c6cb",
+      }}
+    >
+      <IonIcon icon={cloudOfflineOutline} slot="start" color="danger" />
       <IonLabel>
-        <h3>{isOnline ? 'Online' : 'Offline'}</h3>
-        <p>
-          {isOnline 
-            ? 'All features available' 
-            : 'Some features may be limited'
-          }
-        </p>
+        <h3>Offline</h3>
+        <p>Some features may be limited</p>
       </IonLabel>
-      <IonBadge 
-        color={isOnline ? 'success' : 'danger'} 
+      <IonBadge color="danger" slot="end" style={{ marginRight: "8px" }}>
+        No Connection
+      </IonBadge>
+      <IonButton
+        fill="clear"
+        size="small"
+        color="danger"
+        onClick={() => setIsDismissed(true)}
         slot="end"
       >
-        {isOnline ? 'Connected' : 'No Connection'}
-      </IonBadge>
+        <IonIcon icon={closeOutline} />
+      </IonButton>
     </IonItem>
   );
 };

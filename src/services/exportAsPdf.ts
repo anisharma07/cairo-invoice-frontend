@@ -11,20 +11,24 @@ export interface ExportOptions {
 }
 
 // Helper function to add header and footer to each page
-const addHeaderAndFooter = (pdf: jsPDF, pageNumber: number, totalPages: number) => {
+const addHeaderAndFooter = (
+  pdf: jsPDF,
+  pageNumber: number,
+  totalPages: number
+) => {
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
-  
+
   // Get current date and time
   const now = new Date();
-  const dateTimeString = now.toLocaleString('en-US', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: true
+  const dateTimeString = now.toLocaleString("en-US", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
   });
 
   // Set font for header/footer
@@ -169,7 +173,6 @@ export const exportHTMLAsPDF = async (
       onProgress?.("PDF generated successfully!");
     }
   } catch (error) {
-    console.error("Error generating PDF:", error);
     throw new Error("Failed to generate PDF. Please try again.");
   }
 };

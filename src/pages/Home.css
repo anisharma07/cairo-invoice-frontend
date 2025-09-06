@@ -1,20 +1,8 @@
 #container {
-  max-height: 70vh;
-  /* position: relative; */
-  /* border: #eb24fd; */
-  /* border: 10px solid #eb24fd; */
-  /* border-width: 20px; */
-  /* margin: 100px; */
-  /* height: min-content; */
-  /* overflow: auto; */
-  /* position: relative; */
-  /* width: 100%; */
-  /* min-height: 400px; */
-  /* Add smooth scrolling behavior */
-  /* scroll-behavior: smooth; */
-  /* Ensure proper scroll on mobile devices */
-  /* -webkit-overflow-scrolling: touch; */
+  height: min-content;
+  overflow: hidden;
 }
+
 #container,
 #workbookControl,
 #tableeditor,
@@ -23,7 +11,33 @@
   max-height: 100vh;
   /* overflow: hidden; */
 }
+#tableeditor {
+  height: 100vh;
+}
 
+/* Remove bottom padding from Home page content */
+ion-page ion-content {
+  --padding-bottom: 0px !important;
+  padding-bottom: 0px !important;
+}
+
+/* SocialCalc specific fixes */
+#te_griddiv {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* Force SocialCalc container to not have extra bottom space */
+.SocialCalc-spreadsheet {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* Ensure the spreadsheet control fills available space properly */
+#tableeditor > div {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
 /* Dark mode fixes for Home page */
 .dark-theme ion-page {
   --ion-background-color: #0d1117 !important;
@@ -618,4 +632,109 @@ ion-toast {
     min-height: 35px;
     padding: 6px;
   }
+}
+
+/* Invoice Edit FAB Styling */
+ion-fab {
+  z-index: 1000;
+  position: fixed !important;
+  bottom: 16px;
+  right: 16px;
+}
+
+ion-fab ion-fab-button {
+  --box-shadow: 0 4px 16px rgba(var(--ion-color-primary-rgb), 0.3);
+  --border-radius: 50%;
+  width: 56px;
+  height: 56px;
+  margin: 0;
+  transition: all 0.2s ease-in-out;
+}
+
+ion-fab ion-fab-button:hover {
+  --box-shadow: 0 6px 20px rgba(var(--ion-color-primary-rgb), 0.4);
+  transform: translateY(-2px);
+}
+
+ion-fab ion-fab-button:active {
+  transform: translateY(0);
+  --box-shadow: 0 2px 8px rgba(var(--ion-color-primary-rgb), 0.3);
+}
+
+ion-fab ion-fab-button ion-icon {
+  font-size: 24px;
+}
+
+/* Dark theme FAB adjustments */
+.dark-theme ion-fab ion-fab-button {
+  --box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --background: var(--ion-color-primary);
+}
+
+.dark-theme ion-fab ion-fab-button:hover {
+  --box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+}
+
+/* Mobile FAB adjustments */
+@media (max-width: 768px) {
+  ion-fab {
+    bottom: 12px;
+    right: 12px;
+  }
+
+  ion-fab ion-fab-button {
+    width: 48px;
+    height: 48px;
+  }
+
+  ion-fab ion-fab-button ion-icon {
+    font-size: 20px;
+  }
+}
+
+/* Ensure FAB appears above other content */
+@media (max-width: 576px) {
+  ion-fab {
+    bottom: 20px;
+    right: 16px;
+  }
+}
+
+/* Animation for FAB appearance */
+@keyframes fabFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+ion-fab {
+  animation: fabFadeIn 0.3s ease-out;
+}
+
+/* Ensure FAB stays visible during scrolling */
+ion-content {
+  --overflow: auto;
+}
+
+ion-fab[vertical="bottom"][horizontal="end"] {
+  position: fixed !important;
+}
+
+/* Spin animation for auto-save indicator */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin-animation {
+  animation: spin 1.5s linear infinite;
 }

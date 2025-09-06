@@ -8,6 +8,30 @@
   display: none; /* Hide the original icon since it's now a full page */
 }
 
+/* Hide scrollbar for mobile template preview */
+.template-preview-scroll {
+  scrollbar-width: thin; /* Firefox - show thin scrollbar */
+  scrollbar-color: var(--ion-color-medium-tint) transparent; /* Firefox scrollbar colors */
+}
+
+.template-preview-scroll::-webkit-scrollbar {
+  height: 6px; /* WebKit - show thin scrollbar */
+}
+
+.template-preview-scroll::-webkit-scrollbar-track {
+  background: var(--ion-color-step-100);
+  border-radius: 3px;
+}
+
+.template-preview-scroll::-webkit-scrollbar-thumb {
+  background: var(--ion-color-medium-tint);
+  border-radius: 3px;
+}
+
+.template-preview-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--ion-color-medium);
+}
+
 /* Enhanced mobile file list styling */
 @media (max-width: 768px) {
   .files-page-container {

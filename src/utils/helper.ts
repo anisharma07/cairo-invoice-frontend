@@ -23,19 +23,6 @@ export const selectInputText = (inputElement: HTMLIonInputElement) => {
   }
 };
 
-// Add a helper function to clean server filenames
-export const cleanServerFilename = (filename: string): string => {
-  // Remove "server_" prefix if it exists
-  let cleanName = filename.startsWith("server_")
-    ? filename.substring(7)
-    : filename;
-
-  // Remove ".json" extension if it exists
-  cleanName = cleanName.endsWith(".json") ? cleanName.slice(0, -5) : cleanName;
-
-  return cleanName;
-};
-
 // Helper function to check if the default file has user content or is just empty/template
 export const isDefaultFileEmpty = (content: string): boolean => {
   try {
@@ -217,4 +204,37 @@ export const getStorageManagementSuggestions = (
   }
 
   return suggestions;
+};
+
+// User onboarding utilities
+const USER_ONBOARDING_KEY = "invoiceApp_isNewUser";
+
+export const isNewUser = (): boolean => {
+  try {
+    const stored = localStorage.getItem(USER_ONBOARDING_KEY);
+    // If no value is stored, user is new
+    if (stored === null) {
+      return true;
+    }
+    return stored === "true";
+  } catch (error) {
+    console.warn("Error reading from localStorage:", error);
+    return true; // Default to new user if localStorage fails
+  }
+};
+
+export const markUserAsExisting = (): void => {
+  try {
+    localStorage.setItem(USER_ONBOARDING_KEY, "false");
+  } catch (error) {
+    console.warn("Error writing to localStorage:", error);
+  }
+};
+
+export const resetUserOnboarding = (): void => {
+  try {
+    localStorage.removeItem(USER_ONBOARDING_KEY);
+  } catch (error) {
+    console.warn("Error removing from localStorage:", error);
+  }
 };

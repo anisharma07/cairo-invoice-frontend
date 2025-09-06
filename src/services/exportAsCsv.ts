@@ -123,7 +123,6 @@ export function parseSocialCalcCSV(csvContent: string): string {
 
     return cleanedLines.join("\n");
   } catch (error) {
-    console.error("Error parsing SocialCalc CSV:", error);
-    return csvContent; // Return original if parsing fails
+    throw new Error("Failed to export as CSV");
   }
 }

@@ -119,7 +119,6 @@ export const exportHTMLAsPDF = async (
       onProgress?.("PDF generated successfully!");
     }
   } catch (error) {
-    console.error("Error generating PDF:", error);
-    throw new Error("Failed to generate PDF. Please try again.");
+    throw new Error("Failed to generate PDF");
   }
 };
