@@ -98,9 +98,21 @@ export async function pinToIpfs(body, env = process.env) {
   if (!upstream.ok) {
     const text = await upstream.text().catch(() => "");
     console.error("Pinata error", upstream.status, text.slice(0, 300));
+    let reason = "";
+    try {
+      const parsed = JSON.parse(text);
+      reason = parsed?.error?.reason || parsed?.error?.details || parsed?.error || "";
+      if (typeof reason !== "string") reason = JSON.stringify(reason);
+    } catch {
+      /* non-JSON body */
+    }
     return {
       status: 502,
-      json: { error: `Pinning service returned ${upstream.status}` },
+      json: {
+        error: `Pinning service returned ${upstream.status}${
+          reason ? `: ${String(reason).slice(0, 120)}` : ""
+        }`,
+      },
     };
   }
   const data = await upstream.json();
