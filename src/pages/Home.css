@@ -619,3 +619,10 @@ ion-toast {
     padding: 6px;
   }
 }
+
+/* Template switcher: a calm surface instead of a saturated bar */
+.light-theme ion-toolbar.template-bar.ion-color {
+  --ion-color-base: #eef0fa !important;
+  --ion-color-contrast: #1d1d6e !important;
+  border-bottom: 1px solid #dfe2f2;
+}

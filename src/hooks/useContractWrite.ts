@@ -40,7 +40,9 @@ export function useSaveFile() {
   const [data, setData] = useState<{ transactionHash: string } | null>(null);
 
   const saveFile = async (fileName: string, ipfsHash: string) => {
-    if (!contract) return;
+    if (!contract) {
+      throw new Error("Contract not ready yet. Please try again in a moment.");
+    }
     // Check connection status first
     console.log("Wallet connection status:", {
       status,
@@ -110,7 +112,9 @@ export function useSubscribe() {
   const [data, setData] = useState<{ transactionHash: string } | null>(null);
 
   const subscribe = async () => {
-    if (!contract) return;
+    if (!contract) {
+      throw new Error("Contract not ready yet. Please try again in a moment.");
+    }
     if (!account) {
       throw new Error("Wallet account not connected");
     }
@@ -165,7 +169,9 @@ export function useWithdrawTokens() {
   const [data, setData] = useState<{ transactionHash: string } | null>(null);
 
   const withdrawTokens = async (amount: string) => {
-    if (!contract) return;
+    if (!contract) {
+      throw new Error("Contract not ready yet. Please try again in a moment.");
+    }
     if (!account) {
       throw new Error("Wallet account not connected");
     }
@@ -183,7 +189,8 @@ export function useWithdrawTokens() {
       const response = await account.execute({
         contractAddress: contract.address,
         entrypoint: "withdraw_tokens",
-        calldata: [amountBigInt.toString()],
+        // amount is a Cairo u256: it must be encoded as two felts (low, high).
+        calldata: CallData.compile([uint256.bnToUint256(amountBigInt)]),
       });
 
       console.log("Withdrawal transaction response:", response);

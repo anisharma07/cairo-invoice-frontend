@@ -539,7 +539,7 @@ const Home: React.FC = () => {
             />
           </IonButtons>
         </IonToolbar>
-        <IonToolbar color="secondary">
+        <IonToolbar color="secondary" className="template-bar">
           <div
             style={{
               display: "flex",

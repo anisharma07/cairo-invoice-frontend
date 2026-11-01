@@ -10,12 +10,13 @@ import {
 } from "@ionic/react";
 import { IonReactRouter } from "@ionic/react-router";
 import { Route, Redirect } from "react-router-dom";
-import { documentText, folder, menu, settings, home } from "ionicons/icons";
+import { documentText, folder, settings, shieldCheckmark } from "ionicons/icons";
 import Home from "./pages/Home";
 import FilesPage from "./pages/FilesPage";
 import SettingsPage from "./pages/SettingsPage";
 import LandingPage from "./pages/LandingPage";
 import WalletTestPage from "./pages/WalletTestPage";
+import ExplorerPage from "./pages/ExplorerPage";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import { InvoiceProvider } from "./contexts/InvoiceContext";
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
@@ -57,6 +58,9 @@ const AppContent: React.FC = () => {
             <Route exact path="/">
               <LandingPage />
             </Route>
+            <Route exact path="/explorer">
+              <ExplorerPage />
+            </Route>
             <Route exact path="/wallet-test">
               <WalletTestPage />
             </Route>
@@ -70,6 +74,9 @@ const AppContent: React.FC = () => {
                   <Route exact path="/app/files">
                     {!isOnline && <OfflineIndicator />}
                     <FilesPage />
+                  </Route>
+                  <Route exact path="/app/chain">
+                    <ExplorerPage embedded />
                   </Route>
                   <Route exact path="/app/settings">
                     {!isOnline && <OfflineIndicator />}
@@ -89,6 +96,11 @@ const AppContent: React.FC = () => {
                   <IonTabButton tab="files" href="/app/files">
                     <IonIcon icon={folder} />
                     <IonLabel>Files</IonLabel>
+                  </IonTabButton>
+
+                  <IonTabButton tab="chain" href="/app/chain">
+                    <IonIcon icon={shieldCheckmark} />
+                    <IonLabel>Verify</IonLabel>
                   </IonTabButton>
 
                   <IonTabButton tab="settings" href="/app/settings">

@@ -1,15 +1,48 @@
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
+// @ts-ignore - plain JS serverless handler shared with Vercel
+import { pinToIpfs } from "./api/ipfs/pin.js";
+
+/** Serves /api/ipfs/pin during `vite dev`, mirroring the Vercel function. */
+function localApi(env: Record<string, string>): Plugin {
+  return {
+    name: "local-api",
+    configureServer(server) {
+      server.middlewares.use("/api/ipfs/pin", (req, res) => {
+        const send = (status: number, json: unknown) => {
+          res.statusCode = status;
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify(json));
+        };
+        if (req.method !== "POST") return send(405, { error: "POST only" });
+        let raw = "";
+        req.on("data", (c) => (raw += c));
+        req.on("end", async () => {
+          try {
+            const result = await pinToIpfs(JSON.parse(raw || "{}"), env);
+            send(result.status, result.json);
+          } catch (e) {
+            send(500, { error: String(e) });
+          }
+        });
+      });
+    },
+  };
+}
 import { VitePWA } from "vite-plugin-pwa";
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
-    react(), 
+    localApi(loadEnv(mode, process.cwd(), "")),
+    react(),
     VitePWA({ 
       registerType: "autoUpdate",
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,json,txt,woff2}'],
+        // The app bundle is ~4 MB; it must be precached for offline use.
+        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+        navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/api\./,
@@ -38,10 +71,10 @@ export default defineConfig({
         clientsClaim: true
       },
       manifest: {
-        name: 'Govt Invoice Billing App',
-        short_name: 'Invoice App',
-        description: 'Government Invoice Billing Application - Create, manage and track invoices offline and online',
-        theme_color: '#3880ff',
+        name: 'Cairo Invoice: Proof-of-Invoice on Starknet',
+        short_name: 'Cairo Invoice',
+        description: 'Offline-first invoicing with tamper-evident records anchored on Starknet and IPFS.',
+        theme_color: '#1d1d6e',
         background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait-primary',
@@ -90,4 +123,4 @@ export default defineConfig({
       target: "es2020",
     },
   },
-});
+}));

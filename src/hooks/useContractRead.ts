@@ -144,7 +144,7 @@ export function useGetUserFileLimits({ accountAddress }: UseContractReadProps) {
   });
 
   return {
-    fileLimits: fileLimitsData as [bigint, bigint] | undefined, // [files_used, files_allowed]
+    fileLimits: toFileLimits(fileLimitsData), // [files_used, files_allowed]
     refetchFileLimits: fileLimitsRefetch,
     isError: fileLimitsIsError,
     isLoading: fileLimitsIsLoading,
@@ -370,4 +370,23 @@ export function useGetTokenAllowance({
     isLoading: allowanceIsLoading,
     error: allowanceError,
   };
+}
+
+/**
+ * starknet.js returns Cairo tuples as objects ({0: a, 1: b}) rather than
+ * arrays. Normalise to a [used, allowed] pair of bigints.
+ */
+export function toFileLimits(
+  raw: unknown
+): [bigint, bigint] | undefined {
+  if (raw == null) return undefined;
+  const r = raw as Record<string | number, unknown>;
+  const a = r[0] ?? r["0"];
+  const b = r[1] ?? r["1"];
+  if (a === undefined || b === undefined) return undefined;
+  try {
+    return [BigInt(a as bigint), BigInt(b as bigint)];
+  } catch {
+    return undefined;
+  }
 }

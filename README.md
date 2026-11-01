@@ -1,4 +1,40 @@
-# Government Billing Solution MVP
+# Cairo Invoice: Proof-of-Invoice on Starknet
+
+Offline-first invoicing with tamper-evident records anchored on **Starknet** (Cairo) and **IPFS**.
+Create invoices anywhere, pin them to IPFS, and let anyone verify the record on-chain.
+
+**Live demo:** https://cairo-invoice-frontend.vercel.app · **Public explorer:** https://cairo-invoice-frontend.vercel.app/explorer
+
+## What's new (Nov 2026)
+
+- **Public On-chain Explorer** (`/explorer`, and the *Verify* tab): live Sepolia block, PPT token stats,
+  on-chain storage plans, and invoice records for any address. No wallet needed.
+- **Server-side IPFS pinning** via `api/ipfs/pin.js` (Vercel function): the Pinata secret is no longer shipped to browsers.
+  Reads fall back across several IPFS gateways.
+- **RPC resilience**: Blast API is discontinued and Alchemy retired `v0_7`/`v0_8`; the RPC URL is normalised
+  (`src/config/starknet.ts`) with a public fallback, and reads use the `latest` block tag.
+- **Contract call fixes**: `withdraw_tokens` now encodes `u256` correctly (previously reverted with
+  *Failed to deserialize param #1*); write hooks no longer report success when the contract isn't ready;
+  file-limit checks now work (starknet.js returns tuples as objects).
+- **Offline fix**: the main bundle is now precached by the service worker, so the app actually loads offline.
+- New landing page and theme; SPA deep links work on Vercel (`vercel.json`).
+
+### Environment variables
+
+| Name | Where | Purpose |
+| --- | --- | --- |
+| `VITE_STARKNET_RPC_URL` | build | Sepolia JSON-RPC URL (optional; falls back to publicnode) |
+| `PINATA_JWT` *or* `PINATA_API_KEY` + `PINATA_SECRET_KEY` | server | IPFS pinning (legacy `VITE_PINATA_*` names are also read server-side) |
+| `VITE_PINATA_GATEWAY` | build | Preferred IPFS gateway (optional) |
+
+### Contracts (Starknet Sepolia)
+
+- Invoice registry: `0x05edb37e3fcc79257f0969dc6807b5f9b517e260ecddd26779ab082f0f532ad6`
+- PPT storage token (ERC-20): `0x008c6e8700604e0987069cfb5debf6fd359dc09f00f1c61ddac1e52b6e5ceff4`
+
+---
+
+## Original project notes
 
 A comprehensive Progressive Web Application (PWA) built with Ionic 8 and React for government invoice billing with advanced offline capabilities, modern UI/UX, and cross-platform compatibility.
 

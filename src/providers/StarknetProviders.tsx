@@ -2,6 +2,7 @@
 import { ReactNode } from "react";
 
 import { sepolia, mainnet } from "@starknet-react/chains";
+import { SEPOLIA_RPC_URL, MAINNET_FALLBACK_RPC } from "../config/starknet";
 import {
   StarknetConfig,
   argent,
@@ -21,9 +22,6 @@ export function StarknetProviders({ children }: { children: ReactNode }) {
     order: "random",
   });
 
-  const rpcUrl =
-    import.meta.env.VITE_STARKNET_RPC_URL ||
-    "https://starknet-sepolia.public.blastapi.io";
 
   return (
     <StarknetConfig
@@ -31,9 +29,10 @@ export function StarknetProviders({ children }: { children: ReactNode }) {
       provider={jsonRpcProvider({
         rpc: (chain) => ({
           nodeUrl:
-            chain.id === mainnet.id
-              ? "https://starknet-mainnet.public.blastapi.io"
-              : rpcUrl,
+            chain.id === mainnet.id ? MAINNET_FALLBACK_RPC : SEPOLIA_RPC_URL,
+          // RPC spec 0.9+ removed the "pending" block tag that starknet.js v6
+          // uses by default, so pin reads to "latest".
+          blockIdentifier: "latest",
         }),
       })}
       connectors={connectors}
