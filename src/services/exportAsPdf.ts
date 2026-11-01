@@ -34,8 +34,8 @@ const addHeaderAndFooter = (pdf: jsPDF, pageNumber: number, totalPages: number) 
   // Add date/time at top left
   pdf.text(dateTimeString, 10, 8);
 
-  // Add "Govt Invoice App" at bottom left
-  pdf.text("Govt Invoice App", 10, pageHeight - 5);
+  // Add "Cairo Invoice" at bottom left
+  pdf.text("Cairo Invoice", 10, pageHeight - 5);
 
   // Add page number at bottom right
   const pageText = `Page ${pageNumber} of ${totalPages}`;
