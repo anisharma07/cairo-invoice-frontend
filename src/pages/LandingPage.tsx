@@ -52,9 +52,14 @@ const LandingPage: React.FC = () => {
 
   useEffect(() => {
     let cancelled = false;
+    let attempts = 0;
+    const load = () =>
     Promise.allSettled([getNetworkStatus(), getTokenInfo(), getPlans()]).then(
       ([n, t, p]) => {
         if (cancelled) return;
+        if ([n, t, p].some((r) => r.status === "rejected") && attempts++ < 5) {
+          setTimeout(load, 5000);
+        }
         const next: LiveStats = {};
         if (n.status === "fulfilled") next.block = n.value.blockNumber;
         if (t.status === "fulfilled") {
@@ -68,9 +73,10 @@ const LandingPage: React.FC = () => {
           )[0];
           next.cheapest = formatToken(cheapest.cost);
         }
-        setStats(next);
+        setStats((prev) => ({ ...prev, ...next }));
       }
     );
+    load();
     return () => {
       cancelled = true;
     };

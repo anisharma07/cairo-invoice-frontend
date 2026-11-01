@@ -87,7 +87,8 @@ const ExplorerPage: React.FC<ExplorerPageProps> = ({ embedded = false }) => {
   // Network + token + plans
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    const load = async () => {
       try {
         const [n, t, p, o] = await Promise.all([
           getNetworkStatus(),
@@ -100,11 +101,23 @@ const ExplorerPage: React.FC<ExplorerPageProps> = ({ embedded = false }) => {
         setTokenInfo(t);
         setPlans(p);
         setOwner(o);
+        setLoadError(null);
       } catch (e: any) {
-        if (!cancelled)
-          setLoadError(e?.message || "Could not reach Starknet Sepolia");
+        if (cancelled) return;
+        setLoadError(
+          navigator.onLine
+            ? "Couldn't reach Starknet Sepolia. Retrying…"
+            : "You're offline. On-chain data will load when you reconnect."
+        );
+        retryTimer = setTimeout(load, 5000);
       }
-    })();
+    };
+    load();
+    const onOnline = () => {
+      clearTimeout(retryTimer);
+      load();
+    };
+    window.addEventListener("online", onOnline);
     const timer = setInterval(async () => {
       try {
         const n = await getNetworkStatus();
@@ -116,6 +129,8 @@ const ExplorerPage: React.FC<ExplorerPageProps> = ({ embedded = false }) => {
     return () => {
       cancelled = true;
       clearInterval(timer);
+      clearTimeout(retryTimer);
+      window.removeEventListener("online", onOnline);
     };
   }, []);
 

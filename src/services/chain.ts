@@ -13,32 +13,30 @@ import { toFileLimits } from "../hooks/useContractRead";
  * No wallet required, so anyone can verify invoice records.
  */
 
-let provider: RpcProvider | null = null;
-let usingFallback = false;
+const RPC_URLS = Array.from(new Set([SEPOLIA_RPC_URL, SEPOLIA_FALLBACK_RPC]));
+const providers = RPC_URLS.map(
+  (nodeUrl) => new RpcProvider({ nodeUrl, blockIdentifier: "latest" })
+);
+let preferred = 0;
 
-function getProvider(): RpcProvider {
-  if (!provider) {
-    provider = new RpcProvider({
-      nodeUrl: SEPOLIA_RPC_URL,
-      blockIdentifier: "latest",
-    });
-  }
-  return provider;
-}
-
+/**
+ * Run a read against the preferred RPC, falling back to the others on error.
+ * Whichever succeeds becomes preferred for the next call.
+ */
 async function withProvider<T>(fn: (p: RpcProvider) => Promise<T>): Promise<T> {
-  try {
-    return await fn(getProvider());
-  } catch (error) {
-    if (usingFallback || SEPOLIA_RPC_URL === SEPOLIA_FALLBACK_RPC) throw error;
-    console.warn("Primary RPC failed, switching to public fallback", error);
-    usingFallback = true;
-    provider = new RpcProvider({
-      nodeUrl: SEPOLIA_FALLBACK_RPC,
-      blockIdentifier: "latest",
-    });
-    return fn(provider);
+  let lastError: unknown;
+  for (let i = 0; i < providers.length; i++) {
+    const idx = (preferred + i) % providers.length;
+    try {
+      const result = await fn(providers[idx]);
+      preferred = idx;
+      return result;
+    } catch (error) {
+      lastError = error;
+      console.warn(`RPC ${RPC_URLS[idx]} failed, trying next`, error);
+    }
   }
+  throw lastError;
 }
 
 const invoice = (p: RpcProvider) =>
